@@ -129,7 +129,9 @@ jobs:
           POTENCIA_DATABASE_URL: postgresql+psycopg://potencia:potencia@localhost:5432/potencia
           POTENCIA_SECRET_KEY: ci-secret-key-0123456789abcdefgh
           POTENCIA_STORAGE_ROOT: /tmp/potencia-ci
-          POTENCIA_CORS_ORIGINS: http://localhost:4173
+          # Both spellings: the browser loads the app from 127.0.0.1 in CI, and a
+          # CORS mismatch looks exactly like a broken app from inside a test.
+          POTENCIA_CORS_ORIGINS: http://127.0.0.1:4173,http://localhost:4173
         run: |
           nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8010 > /tmp/api.log 2>&1 &
           for i in $(seq 1 30); do
