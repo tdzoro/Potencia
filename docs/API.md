@@ -223,11 +223,11 @@ The atom of every report. Nothing actionable exists outside a finding.
   ],
   "explanation": "The bullet states an activity, not a result. Recruiters cannot judge scope or impact from it.",
   "remediation": "Add the scale you worked at: dataset size, request volume, latency, team size — whichever is true.",
-  "score_impact": -4.5
+  "score_impact": 4.5
 }
 ```
 
-`severity` ∈ `critical` | `high` | `medium` | `low` | `info`. `score_impact` is the exact deduction this finding contributed; it is present only for findings produced by the scoring engine, and `null` for ATS-only findings.
+`severity` ∈ `critical` | `high` | `medium` | `low` | `info`. `score_impact` is the number of points this finding cost — a **positive magnitude**, so the impacts of a report's findings sum to `100 − overall`. It is `null` for advisory findings that did not move a number.
 
 **Evidence is mandatory.** A finding with no `evidence` array is a bug: it is unfalsifiable advice.
 

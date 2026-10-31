@@ -13,6 +13,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
+from app.models import Base  # noqa: F401 — importing registers every table
 
 config = context.config
 
@@ -23,8 +24,7 @@ if config.config_file_name is not None:
 _database_url = get_settings().database_url.replace("%", "%%")
 config.set_main_option("sqlalchemy.url", _database_url)
 
-# Phase 3 attaches the SQLAlchemy declarative metadata here.
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

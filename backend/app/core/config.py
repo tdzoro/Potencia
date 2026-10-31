@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     log_level: str = "INFO"
 
+    # Where uploaded documents live. Never inside the database, never public.
+    storage_root: str = "storage"
+    max_upload_bytes: int = 5 * 1024 * 1024
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Allowed browser origins, comma-separated in one env var."""
