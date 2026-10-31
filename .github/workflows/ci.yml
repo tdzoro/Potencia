@@ -151,9 +151,19 @@ jobs:
           API_BASE_URL: http://127.0.0.1:8010
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
         run: |
-          nohup npx vite preview --port 4173 --strictPort > /tmp/web.log 2>&1 &
+          # --host binds IPv4 explicitly. Without it vite serves `localhost`,
+          # which on the runner resolves to ::1 and refuses 127.0.0.1 — the
+          # difference between a suite that runs and one that fails on the
+          # wrong error.
+          nohup npx vite preview --host 127.0.0.1 --port 4173 --strictPort > /tmp/web.log 2>&1 &
+          ready=0
           for i in $(seq 1 30); do
-            curl -sf http://127.0.0.1:4173/login > /dev/null && break
+            if curl -sf http://127.0.0.1:4173/login > /dev/null; then ready=1; break; fi
             sleep 1
           done
+          if [ "$ready" -ne 1 ]; then
+            echo "the web build never became reachable"
+            cat /tmp/web.log
+            exit 1
+          fi
           npx playwright test
