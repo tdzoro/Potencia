@@ -188,6 +188,27 @@ test.describe('the authenticated journey', () => {
     await expect(page.locator('body')).toContainText(/revision 1|2 revisions|saved/i)
   })
 
+  test('a version can be named and compared with the original', async ({ page, context }) => {
+    await withSession(context, seeded.token)
+
+    await page.goto(`/app/resumes/${seeded.resumeId}/studio`)
+    const summary = page.locator('section[aria-labelledby="summary-heading"] textarea').first()
+    await expect(summary).toBeVisible()
+
+    const improved = 'Platform engineer focused on developer experience and deploy safety.'
+    await summary.fill(improved)
+    await page.getByLabel('Name this version (optional)').fill('Platform')
+    await page.getByRole('button', { name: /save as new revision/i }).click()
+
+    // The label is stored and shown in the version picker and history.
+    await expect(page.locator('#version-select')).toContainText('Platform')
+
+    await page.getByRole('button', { name: /^compare$/i }).click()
+    const panel = page.locator('section[aria-labelledby="compare-heading"]')
+    await expect(panel).toContainText('summary')
+    await expect(panel).toContainText(improved)
+  })
+
   test('history lists the uploaded resume and the analysis', async ({ page, context }) => {
     await withSession(context, seeded.token)
 

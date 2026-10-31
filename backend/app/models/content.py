@@ -81,6 +81,9 @@ class ResumeRevision(Base, UUIDPrimaryKeyMixin):
     )
     content: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     applied_recommendations: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # A user-chosen name ("Backend", "Data engineer") so a resume can hold
+    # several versions side by side without duplicating the document.
+    label: Mapped[str | None] = mapped_column(String(80), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     resume: Mapped[Resume] = relationship(back_populates="revisions")

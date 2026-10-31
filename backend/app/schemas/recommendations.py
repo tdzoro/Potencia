@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import Literal
 
@@ -56,6 +57,7 @@ class RevisionOut(BaseModel):
     id: str
     resume_id: str
     parent_id: str | None = None
+    label: str | None = None
     applied_recommendations: list[str] = Field(default_factory=list)
     content: ResumeStructure | None = None
     created_at: datetime
@@ -69,5 +71,25 @@ class CreateRevisionRequest(BaseModel):
     """
 
     content: ResumeStructure
-    parent_id: str | None = None
+    # Typed as a UUID so a malformed id is a 422 from the framework, not a 500
+    # from `uuid.UUID(...)` inside the handler.
+    parent_id: uuid.UUID | None = None
+    label: str | None = Field(default=None, max_length=80)
     applied_recommendation_ids: list[str] = Field(default_factory=list)
+
+
+class RevisionChange(BaseModel):
+    """One field that differs between two versions."""
+
+    field: str
+    before: str | None = None
+    after: str | None = None
+
+
+class RevisionCompareOut(BaseModel):
+    resume_id: str
+    from_revision: str
+    to_revision: str
+    from_label: str | None = None
+    to_label: str | None = None
+    changes: list[RevisionChange] = Field(default_factory=list)

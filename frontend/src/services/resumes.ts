@@ -5,6 +5,7 @@ import type {
   Resume,
   ResumeList,
   Revision,
+  RevisionCompare,
 } from '../types/domain'
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
@@ -35,6 +36,15 @@ export function createRevision(resumeId: string, payload: CreateRevisionPayload)
     method: 'POST',
     body: payload,
   })
+}
+
+export function compareRevisions(
+  resumeId: string,
+  fromRevision: string,
+  toRevision: string,
+): Promise<RevisionCompare> {
+  const query = new URLSearchParams({ from_revision: fromRevision, to_revision: toRevision })
+  return authedRequest<RevisionCompare>(`/api/v1/resumes/${resumeId}/revisions/compare?${query}`)
 }
 
 export function analyseResume(resumeId: string): Promise<AnalysisDetail> {

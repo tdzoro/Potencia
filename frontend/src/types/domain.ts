@@ -186,6 +186,7 @@ export interface Revision {
   id: string
   resume_id: string
   parent_id: string | null
+  label: string | null
   applied_recommendations: string[]
   content: ResumeStructure | null
   created_at: string
@@ -194,7 +195,23 @@ export interface Revision {
 export interface CreateRevisionPayload {
   content: ResumeStructure
   parent_id?: string | null
+  label?: string | null
   applied_recommendation_ids?: string[]
+}
+
+export interface RevisionChange {
+  field: string
+  before: string | null
+  after: string | null
+}
+
+export interface RevisionCompare {
+  resume_id: string
+  from_revision: string
+  to_revision: string
+  from_label: string | null
+  to_label: string | null
+  changes: RevisionChange[]
 }
 
 /* ------------------------------------------------------------ analyses --- */

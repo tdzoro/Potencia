@@ -3,9 +3,9 @@
 ## Running the suites
 
 ```bash
-cd backend && pytest -q          # 129 tests, hermetic
+cd backend && pytest -q          # 140 tests, hermetic
 cd frontend && npm run build     # strict typecheck + production build
-cd frontend && npm run e2e       # 9 browser tests, needs a live stack
+cd frontend && npm run e2e       # 10 browser tests, needs a live stack
 ```
 
 The backend suite needs no PostgreSQL, no network and no AI provider: it runs on an in-memory SQLite database per test, with uploads in a temporary directory. The browser suite needs a running API and a built web app; it seeds its own account, so it never depends on data already in a database.
@@ -29,6 +29,8 @@ The backend suite needs no PostgreSQL, no network and no AI provider: it runs on
 | Pagination | `test_pagination.py` | Pages walk without gaps or repeats, newest first, malformed cursor is `422` |
 | Rate-limit store | `test_ratelimit_store.py` | Middleware honours an injected store, in-memory window, Redis `INCR`+`EXPIRE NX` semantics, unreachable Redis degrades |
 | Calibration | `test_calibration.py` | Spearman on monotone and tied data, applicability-aware totals, normalisation |
+| Versions | `test_versions.py` | Labels stored and returned, unlabelled stays null, malformed `parent_id` is `422` not `500`, over-length label rejected, field-level comparison, identical versions report no changes, cross-resume and cross-account comparison is `404` |
+| Retention | `test_retention.py` | Expired file and row both removed, download link stops serving, unexpired export survives, an expired row without bytes still goes |
 
 ## Tests that would fail if the product lied
 
@@ -53,6 +55,7 @@ The backend suite needs no PostgreSQL, no network and no AI provider: it runs on
 | Export | A generated report exposes a signed `token=` link |
 | Match | A pasted description produces an estimate and names `Terraform` as a gap |
 | Studio | A summary edit saves as a new revision |
+| Version comparison | A version is named, appears in the version picker, and the comparison names `summary` as the changed field with the new text |
 | History | The uploaded resume and its analysis are listed |
 
 The suite found a real gap when first run: the landing page had no route to sign-in. The fix was in the application, not the test.
@@ -78,8 +81,20 @@ Parses eight fixtures, scores them, and compares weight vectors by rank correlat
 
 `npm run typecheck` is the gate: `src/types/domain.ts` mirrors `docs/API.md`, so a contract drift breaks compilation instead of surfacing as a blank panel at runtime. `npm run build` runs it before bundling.
 
+## Load test
+
+```bash
+# limiter off, so the run measures parsing and scoring rather than the throttle
+POTENCIA_RATE_LIMIT_ENABLED=false uvicorn app.main:app --port 8010
+PYTHONPATH=backend backend/.venv/bin/python scripts/load_test.py --base-url http://127.0.0.1:8010
+```
+
+Each worker registers, uploads one document, then posts analyses — real extraction, real parsing, real scoring. Result of the recorded run: 200 analyses over 8 clients in 2.59 s, **77.4 analyses/s**, p50 72.3 ms, p95 142.8 ms, p99 155.8 ms, 0 failures. Stored in `assets/readme/load.json`.
+
+This is one host, one API process and one local PostgreSQL. It catches a regression in the engine's cost; it is not a capacity plan.
+
 ## Known gaps
 
-- No load testing; latency figures are single-user.
+- Load figures come from one process on one host, so they bound engine cost and say nothing about multi-node scaling.
 - No fuzzing of the document parsers beyond the malformed fixtures.
 - OCR has no installed engine, so that path is untested end to end (the detection and reporting around it is tested).

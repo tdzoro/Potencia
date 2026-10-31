@@ -6,8 +6,8 @@
 
 **AI Resume Intelligence — explainable scoring, ATS compatibility, job matching, and edits you approve.**
 
-[![Tests](https://img.shields.io/badge/tests-129%20backend%20·%209%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
-[![API](https://img.shields.io/badge/API-31%20operations-22D3EE?style=flat-square)](docs/API.md)
+[![Tests](https://img.shields.io/badge/tests-140%20backend%20·%2010%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![API](https://img.shields.io/badge/API-32%20operations-22D3EE?style=flat-square)](docs/API.md)
 [![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
 [![Licence](https://img.shields.io/badge/licence-MIT-9AA3C7?style=flat-square)](LICENSE)
 
@@ -184,7 +184,8 @@ The original parse is **revision 0** and is never overwritten. An edit is a new 
 | Paging | Keyset cursors on UUIDv7 — new rows arriving mid-walk never duplicate or skip a record |
 | Cross-worker limits | Redis-backed counters when `POTENCIA_REDIS_URL` is set; process memory otherwise, logged at startup |
 | Downloads | HMAC-signed, account-bound, 15-minute capability URLs |
-| Retention | Exports expire in 24h; `python -m app.tasks.retention` removes the files and rows |
+| Retention | Exports expire in 24h; a scheduled `app.tasks.retention` service deletes the files and rows — the promise is performed, not just printed |
+| Versions | One resume, several named versions (`label`), each a full snapshot; a field-level diff compares any two |
 
 ---
 
@@ -200,7 +201,17 @@ The original parse is **revision 0** and is never overwritten. An edit is a new 
 | Job match | 17.6 ms | — |
 | PDF export | 87.2 ms | 107.7 ms |
 
-20 runs each, single user, no caching layer. These are **not** load-test figures and will not be described as such.
+20 runs each, single user, no caching layer. Latency grows under concurrency, so here is the concurrent measurement too — `scripts/load_test.py`, 8 clients, 200 analyses, limiter disabled so the run measures the engines rather than the throttle:
+
+| Metric | Value |
+|:--|--:|
+| Analyses completed | **200 / 200** (0 failed) |
+| Wall time | 2.59 s |
+| Throughput | **77.4 analyses/s** |
+| Latency p50 / p95 / p99 | **72.3 / 142.8 / 155.8 ms** |
+| Slowest | 164.9 ms |
+
+One host, one API process, one local PostgreSQL. It bounds the engine's cost and is not a capacity plan. Raw figures in [`assets/readme/load.json`](assets/readme/load.json).
 
 ---
 
@@ -268,12 +279,12 @@ cd frontend && npm install && npm run dev
 
 ## API surface
 
-31 operations across 23 paths, all under `/api/v1` except health. Full contracts in [`docs/API.md`](docs/API.md).
+32 operations across 24 paths, all under `/api/v1` except health. Full contracts in [`docs/API.md`](docs/API.md).
 
 | Group | Operations |
 |:--|:--|
 | Auth | register · login · refresh · logout · me · delete account |
-| Resumes | upload · list · get · revisions (list, create) · delete |
+| Resumes | upload · list · get · revisions (list, create, compare) · delete |
 | Analyses | create · list · get · report · recommendations · exports · delete |
 | Jobs & matches | create · list · get · delete · match · read |
 | Recommendations | decide (accept · reject · edit) |
@@ -301,12 +312,12 @@ Full detail, including what is deliberately not implemented yet, is in [`docs/SE
 ## Testing
 
 ```bash
-cd backend && pytest -q          # 129 tests, no database or network required
+cd backend && pytest -q          # 140 tests, no database or network required
 cd frontend && npm run build     # strict typecheck + production build
-cd frontend && npm run e2e       # 9 browser tests against a live stack
+cd frontend && npm run e2e       # 10 browser tests against a live stack
 ```
 
-The browser suite seeds its own account through the API and drives the real UI: the score is asserted from the DOM, a recommendation is accepted and re-read after reload, a PDF is generated and its signed link verified, a job description produces a named gap, and a revision is saved without touching the original.
+The browser suite seeds its own account through the API and drives the real UI: the score is asserted from the DOM, a recommendation is accepted and re-read after reload, a PDF is generated and its signed link verified, a job description produces a named gap, a revision is saved without touching the original, and a named version is compared field by field.
 
 Tests that exist to stop the product lying: score reconciliation, evidence on every finding, *no digits in an invented rewrite*, `partial` never collapsing into `absent`, and revision 0 being byte-identical after an edit. Details in [`docs/TESTING.md`](docs/TESTING.md).
 
@@ -321,7 +332,8 @@ Stated here rather than discovered later:
 - **No LLM in the request path.** Recommendations are rules; the provider seam exists and validates any rewrite before use.
 - **No OCR engine installed.** Scanned PDFs are detected and reported as `partial` with `ocr_not_performed` rather than silently scored on bad text.
 - **No malware scanning** on uploads; no email verification flow.
-- **Latency is single-user.** There is no load test behind these numbers.
+- **Throughput is single-node.** The load run is 200 analyses over 8 clients against one API process; multi-process and multi-host scaling are unmeasured.
+- **Comparison covers summary, skills and experience bullets.** Projects and education are editable but not yet diffed, and export always renders the newest version.
 - **Registration is limited to 5 per 15 minutes per identity**, which a shared office IP can reach. The browser suite seeds once for that reason.
 
 ---

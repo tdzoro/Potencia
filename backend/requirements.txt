@@ -16,10 +16,10 @@ PyMuPDF>=1.24,<2.0
 python-docx>=1.1,<2.0
 # --- Export ---
 reportlab>=4.2,<5.0
-# Optional: shared rate-limit counters across workers. Enable by setting
-# POTENCIA_REDIS_URL and installing this extra (`pip install redis`). Without
-# it the limiter falls back to per-process memory and logs that it did.
-# redis>=5.0,<7.0
+# Shared rate-limit counters across workers, enabled by POTENCIA_REDIS_URL.
+# Installed by default because docker-compose ships a Redis service; with no
+# URL set the limiter uses per-process memory and logs that it did.
+redis>=5.0,<7.0
 # --- Test ---
 pytest>=8.0,<9.0
 httpx>=0.27,<1.0

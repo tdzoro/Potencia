@@ -6,9 +6,6 @@
 # The database credentials below are local development defaults for a container
 # bound to localhost. Production configuration lives in the deployment guide and
 # never stores secrets in this file.
-#
-# Redis is deliberately absent: nothing in Phases 2–3 requires background work.
-# It arrives with the asynchronous task runner, not before.
 
 name: potencia
 
@@ -30,6 +27,20 @@ services:
       timeout: 5s
       retries: 12
 
+  # Rate-limit counters. Present because the API runs more than one worker in
+  # this stack: per-process counters would let each worker hand out a full budget,
+  # so the published limit would be true only for a single process.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Counters only — persisting them would outlive the windows they measure.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
   api:
     build:
       context: ./backend
@@ -41,8 +52,27 @@ services:
       POTENCIA_SECRET_KEY: ${POTENCIA_SECRET_KEY:-dev-insecure-change-me}
       POTENCIA_CORS_ORIGINS: "http://localhost:5173,http://localhost:8080"
       POTENCIA_LOG_LEVEL: ${POTENCIA_LOG_LEVEL:-INFO}
+      POTENCIA_REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Deletes generated export files once their 24-hour retention window ends.
+  # Without this the product would keep promising a deletion it never performed.
+  retention:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: ["python", "-m", "app.tasks.retention", "--interval", "3600"]
+    environment:
+      POTENCIA_ENVIRONMENT: development
+      POTENCIA_DATABASE_URL: postgresql+psycopg://potencia:potencia@db:5432/potencia
+      POTENCIA_SECRET_KEY: ${POTENCIA_SECRET_KEY:-dev-insecure-change-me}
+      POTENCIA_LOG_LEVEL: ${POTENCIA_LOG_LEVEL:-INFO}
     depends_on:
       db:
         condition: service_healthy

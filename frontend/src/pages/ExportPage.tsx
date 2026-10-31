@@ -42,7 +42,7 @@ function ExportCard({ record }: { record: ExportRecord }) {
             {record.format.toUpperCase()}
           </p>
           <p className="mt-1 text-xs text-muted">
-            {formatBytes(record.size_bytes)} · generated {formatTimestamp(record.expires_at)}
+            {formatBytes(record.size_bytes)} · expires {formatTimestamp(record.expires_at)}
           </p>
         </div>
         <div className="flex items-center gap-3">

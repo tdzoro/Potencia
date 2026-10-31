@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     # unset, each process keeps its own budget and says so at startup.
     redis_url: str | None = None
 
+    # Load tests and benchmarks switch the limiter off to measure the engine
+    # rather than the throttle. It is on by default and must stay on in
+    # production.
+    rate_limit_enabled: bool = True
+
     # Where uploaded documents live. Never inside the database, never public.
     storage_root: str = "storage"
     max_upload_bytes: int = 5 * 1024 * 1024

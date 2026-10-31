@@ -314,6 +314,7 @@ The atom of every report. Nothing actionable exists outside a finding.
   "id": "rev_018f...",
   "resume_id": "018f...",
   "parent_id": "rev_018e...",
+  "label": "Backend",
   "content": { "...": "approved resume structure" },
   "applied_recommendations": ["r_018f..."],
   "created_at": "2026-11-01T09:20:00Z"
@@ -321,6 +322,8 @@ The atom of every report. Nothing actionable exists outside a finding.
 ```
 
 Revision `0` is always the untouched parse. The original is immutable; every edit creates a new node. `parent_id` makes the chain explicit, so history is a tree, not a guess.
+
+`label` is an optional user-chosen name (`"Backend"`, `"Data engineer"`) so one resume can hold several role-targeted versions without duplicating the document. It is `null` when unnamed and capped at 80 characters; a longer label is a `422`.
 
 ### 2.11 `Export`
 
@@ -394,7 +397,33 @@ Rules: password minimum 12 characters, checked against a breach corpus in Phase 
 | `GET` | `/resumes/{resume_id}` | access | `200` `Resume` |
 | `DELETE` | `/resumes/{resume_id}` | access | `204` — deletes file, parse and dependent analyses |
 | `POST` | `/resumes/{resume_id}/revisions` | access | `201` `Revision` |
-| `GET` | `/resumes/{resume_id}/revisions` | access | `200` paginated `Revision` |
+| `GET` | `/resumes/{resume_id}/revisions` | access | `200` `Revision[]` |
+| `GET` | `/resumes/{resume_id}/revisions/compare` | access | `200` `RevisionCompare` — field-level diff of two owned versions |
+
+```json
+// POST /resumes/{resume_id}/revisions
+{ "content": { "...": "complete structure" }, "parent_id": "rev_018e...", "label": "Backend" }
+```
+
+`parent_id` must belong to the same resume and account, otherwise `404`. It is a UUID: a malformed value is a `422` validation error, never a `500`.
+
+`GET /revisions/compare?from_revision=<uuid>&to_revision=<uuid>` returns the fields a user can edit that differ between the two versions:
+
+```json
+{
+  "resume_id": "018f...",
+  "from_revision": "rev_018e...",
+  "to_revision": "rev_018f...",
+  "from_label": null,
+  "to_label": "Backend",
+  "changes": [
+    { "field": "summary", "before": "Full-stack developer…", "after": "Backend engineer…" },
+    { "field": "experience[0].bullet[1]", "before": "Worked on the API.", "after": "Cut p99 latency from 800ms to 220ms." }
+  ]
+}
+```
+
+Only summary, the explicit skills list and experience bullets are compared, because those are exactly the fields the studio can change; a comparison that claimed to diff fields the user cannot edit would be noise. `changes` is empty when the versions are identical.
 
 `POST /resumes` is `multipart/form-data` with a single field `file`.
 

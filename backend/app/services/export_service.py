@@ -55,7 +55,9 @@ def _latest_structure(db: Session, user: User, resume: Resume) -> ResumeStructur
     revision = db.scalar(
         select(ResumeRevision)
         .where(ResumeRevision.resume_id == resume.id, ResumeRevision.user_id == user.id)
-        .order_by(ResumeRevision.created_at.desc())
+        # IDs are UUIDv7, so the tie-break keeps "newest" deterministic even when
+        # two revisions land in the same clock tick.
+        .order_by(ResumeRevision.created_at.desc(), ResumeRevision.id.desc())
         .limit(1)
     )
     if revision is not None and revision.content:

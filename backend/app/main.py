@@ -130,7 +130,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         expose_headers=_EXPOSED_HEADERS,
         max_age=600,
     )
-    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(RateLimitMiddleware, enabled=settings.rate_limit_enabled)
     app.middleware("http")(request_context)
     app.middleware("http")(security_headers)
 

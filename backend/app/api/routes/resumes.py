@@ -15,7 +15,12 @@ from app.core.database import get_db
 from app.core.errors import PotenciaError
 from app.models.content import Resume, ResumeRevision
 from app.models.user import User
-from app.schemas.recommendations import CreateRevisionRequest, RevisionOut
+from app.schemas.recommendations import (
+    CreateRevisionRequest,
+    RevisionChange,
+    RevisionCompareOut,
+    RevisionOut,
+)
 from app.schemas.resume import ResumeStructure
 from app.schemas.resumes import (
     ExtractionOut,
@@ -149,6 +154,7 @@ def _revision_out(revision: ResumeRevision) -> RevisionOut:
         id=str(revision.id),
         resume_id=str(revision.resume_id),
         parent_id=str(revision.parent_id) if revision.parent_id else None,
+        label=revision.label,
         applied_recommendations=list(revision.applied_recommendations or []),
         content=ResumeStructure.model_validate(revision.content) if revision.content else None,
         created_at=revision.created_at,
@@ -162,6 +168,27 @@ def list_revisions(
     return [_revision_out(row) for row in revision_service.list_revisions(db, user, resume_id)]
 
 
+@router.get("/{resume_id}/revisions/compare", response_model=RevisionCompareOut)
+def compare_revisions(
+    resume_id: uuid.UUID,
+    from_revision: uuid.UUID,
+    to_revision: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> RevisionCompareOut:
+    before, after, changes = revision_service.compare_revisions(
+        db, user, resume_id, from_revision_id=from_revision, to_revision_id=to_revision
+    )
+    return RevisionCompareOut(
+        resume_id=str(resume_id),
+        from_revision=str(before.id),
+        to_revision=str(after.id),
+        from_label=before.label,
+        to_label=after.label,
+        changes=[RevisionChange(**change) for change in changes],
+    )
+
+
 @router.post("/{resume_id}/revisions", status_code=201, response_model=RevisionOut)
 def create_revision(
     resume_id: uuid.UUID,
@@ -169,14 +196,14 @@ def create_revision(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RevisionOut:
-    parent_id = uuid.UUID(payload.parent_id) if payload.parent_id else None
     revision = revision_service.create_revision(
         db,
         user,
         resume_id,
         content=payload.content,
-        parent_id=parent_id,
+        parent_id=payload.parent_id,
         applied_recommendation_ids=payload.applied_recommendation_ids,
+        label=payload.label,
     )
     return _revision_out(revision)
 

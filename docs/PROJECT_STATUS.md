@@ -51,10 +51,10 @@ PDF report, PDF and DOCX resume, signed 15-minute URLs, files re-opened by a par
 Rate limiting through a pluggable store (memory or Redis), security headers, signed downloads, streaming upload caps, ownership checks, secret management, retention sweep. **PASS**, with `KI-4` and `KI-5` open.
 
 ### Phase 14 — QA
-129 backend tests, hermetic. Migration round-trip in CI against PostgreSQL 16. **PASS.**
+140 backend tests, hermetic. Migration round-trip in CI against PostgreSQL 16. **PASS.**
 
 ### Phase 15 — Performance
-Measured: analysis p50 **22.1 ms**, p95 **26.3 ms**; export p50 **87.2 ms** on a local PostgreSQL container. **PASS** at single-user scale; no load test exists.
+Measured: analysis p50 **22.1 ms**, p95 **26.3 ms**; export p50 **87.2 ms** on a local PostgreSQL container. Concurrent run through `scripts/load_test.py`: 200 analyses across 8 clients in 2.59 s — **77.4 analyses/s**, p50 **72.3 ms**, p95 **142.8 ms**, p99 **155.8 ms**, 0 failures. **PASS** at single-node scale.
 
 ### Phase 16 — Deployment
 Dockerfiles (non-root API, nginx static web), compose stack with health checks, GitHub Actions running tests, migration round-trip, frontend build, and the browser journey. **PASS.**
@@ -67,7 +67,14 @@ Every claim in `API.md` that had no implementation behind it is now implemented 
 - **Export history** — `GET /analyses/{id}/exports`, surfaced in the UI so a reload no longer forgets generated files.
 - **Shared rate limiting** — `LimitStore` seam with an in-memory and a Redis implementation; unreachable Redis degrades loudly, never silently.
 - **Weight calibration harness** — eight rubric-ranked fixtures, Spearman and pairwise accuracy per candidate vector. The shipped vector ties for best (`0.909` / `0.920`), so nothing changed; now the claim is reproducible.
-- **Browser suite** — nine Playwright tests over the authenticated journey against a live stack, now part of CI. **PASS.**
+- **Browser suite** — nine Playwright tests over the authenticated journey against a live stack, now part of CI.
+- **Named versions** — `resume_revisions.label` with migration `0004`, and `GET /resumes/{id}/revisions/compare` returning a field-level diff between two owned versions. The studio can switch versions, name them and compare them. **PASS.**
+- **Scheduled retention** — `app.tasks.retention` removes expired export files and rows; a `retention` service runs it hourly in compose. The 24-hour promise the UI made is now performed by the product.
+- **Redis in the stack** — compose ships Redis and the API points `POTENCIA_REDIS_URL` at it, so published limits hold across workers instead of per process.
+- **Load harness** — `scripts/load_test.py` drives the analysis endpoint concurrently and stores `assets/readme/load.json`.
+- **Crash fixed** — a non-UUID `parent_id` reached `uuid.UUID(...)` in the handler and returned `500`; it is now typed as a UUID and rejected as `422` before the handler runs. Covered by `test_versions.py`.
+
+**PASS.**
 
 ---
 
@@ -88,9 +95,7 @@ Browser journey verified in Chrome: score rendered from the DOM, acceptance pers
 | KI-4 | No malware scanning on uploads | Medium | Type and size checked only |
 | KI-5 | No email verification flow | Low | Field stored, no mail sent |
 | KI-6 | OCR engine not installed | Low | Scanned documents are detected and labelled `ocr_not_performed`, never silently scored |
-| KI-10 | Retention sweep is manual | Low | `python -m app.tasks.retention` needs a scheduler |
-
-**Resolved in Phase 17:** per-process-only rate limits, missing export history, absent browser automation, unverified click-through of the match view.
+**Resolved in Phase 17:** per-process-only rate limits, missing export history, absent browser automation, unverified click-through of the match view, manual-only retention (now scheduled in compose), multi-version resumes (now labelled with comparison), a `500` on a malformed `parent_id`, and export rows mislabelled with an expiry as a generation time.
 
 ---
 
@@ -99,13 +104,14 @@ Browser journey verified in Chrome: score rendered from the DOM, acceptance pers
 - `POST /auth/login` is rate limited per identity; a shared office IP can still exhaust the registration budget.
 - Jobs and matches are stored; the UI lists jobs but not past matches for a resume.
 - No cursor support in the web client yet — lists fetch the first page only.
-- Exports are pruned by a manual sweep rather than a scheduled job.
+- The comparison view diffs summary, explicit skills and experience bullets. Projects and education are editable in the structure but not yet compared.
+- Exports always render the newest revision; choosing a named version to export is not yet offered.
 
 ---
 
 ## Next
 
 1. Calibration study with independently ranked resumes, then a `methodology_version` bump if the weights move.
-2. Scheduled retention job, and Redis in the compose stack.
+2. Export a chosen named version instead of always the newest, and compare projects and education as well.
 3. Optional LLM rewrite provider behind the existing seam, with prompt-injection controls documented before it ships.
-4. Multi-version resumes with per-role comparison.
+4. Multi-process load test and a second host, so throughput can be quoted beyond one process.

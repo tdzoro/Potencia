@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '../components/Badge'
 import { EmptyState, ErrorNotice, LoadingState, PageHeader } from '../components/States'
-import { createRevision, listRevisions } from '../services/resumes'
+import { compareRevisions, createRevision, listRevisions } from '../services/resumes'
 import type { ResumeStructure, Revision } from '../types/domain'
 
 function cloneStructure(structure: ResumeStructure): ResumeStructure {
@@ -35,16 +35,22 @@ export function StudioPage() {
   })
 
   const revisions: Revision[] = revisionsQuery.data ?? []
-  const current = useMemo(() => {
-    if (revisions.length === 0) {
-      return null
-    }
-    return revisions[revisions.length - 1] ?? null
-  }, [revisions])
+  const latest = revisions.length > 0 ? revisions[revisions.length - 1] ?? null : null
+
+  // One resume can hold several named versions ("Backend", "Data"). The studio
+  // edits one at a time; the newest is the default because it is what exports.
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const current = useMemo(
+    () => revisions.find((revision) => revision.id === selectedId) ?? latest,
+    [revisions, selectedId, latest],
+  )
 
   const [working, setWorking] = useState<ResumeStructure | null>(null)
   const [baseline, setBaseline] = useState<ResumeStructure | null>(null)
   const [skillsDraft, setSkillsDraft] = useState('')
+  const [labelDraft, setLabelDraft] = useState('')
+  const [compareFrom, setCompareFrom] = useState('')
+  const [compareTo, setCompareTo] = useState('')
 
   useEffect(() => {
     const content = current?.content ?? null
@@ -59,6 +65,20 @@ export function StudioPage() {
     setBaseline(cloneStructure(content))
     setSkillsDraft(copy.skills.explicit.join(', '))
   }, [current?.id, current?.content])
+
+  // Default the comparison to first version vs newest, which is the pair a user
+  // wants to see after improving a resume.
+  useEffect(() => {
+    if (revisions.length === 0) {
+      return
+    }
+    if (!compareFrom) {
+      setCompareFrom(revisions[0]?.id ?? '')
+    }
+    if (!compareTo) {
+      setCompareTo(revisions[revisions.length - 1]?.id ?? '')
+    }
+  }, [revisions, compareFrom, compareTo])
 
   const save = useMutation({
     mutationFn: async () => {
@@ -78,12 +98,22 @@ export function StudioPage() {
       return createRevision(resumeId, {
         content: payload,
         parent_id: current.id,
+        label: labelDraft.trim() || null,
         applied_recommendation_ids: [],
       })
     },
-    onSuccess: async () => {
+    onSuccess: async (revision) => {
       await queryClient.invalidateQueries({ queryKey: ['revisions', resumeId] })
+      setSelectedId(revision.id)
+      // The comparison should be about the version that was just saved.
+      setCompareTo(revision.id)
+      setLabelDraft('')
     },
+  })
+
+  const comparison = useMutation({
+    mutationFn: (input: { from: string; to: string }) =>
+      compareRevisions(resumeId, input.from, input.to),
   })
 
   const changes = useMemo(() => {
@@ -292,6 +322,31 @@ export function StudioPage() {
         </div>
 
         <aside className="flex flex-col gap-4">
+          <section className="panel p-5" aria-labelledby="version-heading">
+            <h2 id="version-heading" className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">
+              Version
+            </h2>
+            <label htmlFor="version-select" className="mt-3 block text-xs text-muted">
+              Editing
+            </label>
+            <select
+              id="version-select"
+              value={current.id}
+              onChange={(event) => setSelectedId(event.target.value)}
+              className="mt-1 w-full rounded-xl border border-line bg-void/60 px-3 py-2 text-sm text-ink focus:border-electric"
+            >
+              {revisions.map((revision, index) => (
+                <option key={revision.id} value={revision.id}>
+                  v{index}
+                  {revision.label ? ` · ${revision.label}` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-[11px] text-muted/80">
+              Switching versions loads that version as the working copy. Unsaved edits are discarded.
+            </p>
+          </section>
+
           <section className="panel p-5" aria-labelledby="save-heading">
             <h2 id="save-heading" className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">
               Save as a new revision
@@ -318,6 +373,19 @@ export function StudioPage() {
                 </ul>
               </>
             )}
+
+            <label htmlFor="version-label" className="mt-4 block text-xs text-muted">
+              Name this version (optional)
+            </label>
+            <input
+              id="version-label"
+              type="text"
+              value={labelDraft}
+              maxLength={80}
+              onChange={(event) => setLabelDraft(event.target.value)}
+              className="mt-1 w-full rounded-xl border border-line bg-void/60 px-3 py-2 text-sm text-ink focus:border-electric"
+              placeholder="Backend engineer"
+            />
 
             <div className="mt-4 flex flex-col gap-2">
               <button
@@ -376,6 +444,9 @@ export function StudioPage() {
                       <span className="font-mono text-[11px] text-ink">v{index}</span>
                       {isCurrent ? <Badge tone="info">current</Badge> : null}
                     </div>
+                    {revision.label ? (
+                      <p className="mt-1 text-[11px] font-semibold text-ink">{revision.label}</p>
+                    ) : null}
                     <p className="mt-1 text-[11px] text-muted">{formatTimestamp(revision.created_at)}</p>
                     {revision.parent_id ? (
                       <p className="text-[11px] text-muted/70">
@@ -388,6 +459,83 @@ export function StudioPage() {
                 )
               })}
             </ol>
+          </section>
+
+          <section className="panel p-5" aria-labelledby="compare-heading">
+            <h2 id="compare-heading" className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">
+              Compare versions
+            </h2>
+            <p className="mt-2 text-xs text-muted">
+              Two versions, field by field — the check before exporting one for a different role.
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <label htmlFor="compare-from" className="flex flex-col gap-1 text-[11px] text-muted">
+                From
+                <select
+                  id="compare-from"
+                  value={compareFrom}
+                  onChange={(event) => setCompareFrom(event.target.value)}
+                  className="rounded-lg border border-line bg-void/60 px-2 py-1.5 text-xs text-ink focus:border-electric"
+                >
+                  {revisions.map((revision, index) => (
+                    <option key={revision.id} value={revision.id}>
+                      v{index}
+                      {revision.label ? ` · ${revision.label}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label htmlFor="compare-to" className="flex flex-col gap-1 text-[11px] text-muted">
+                To
+                <select
+                  id="compare-to"
+                  value={compareTo}
+                  onChange={(event) => setCompareTo(event.target.value)}
+                  className="rounded-lg border border-line bg-void/60 px-2 py-1.5 text-xs text-ink focus:border-electric"
+                >
+                  {revisions.map((revision, index) => (
+                    <option key={revision.id} value={revision.id}>
+                      v{index}
+                      {revision.label ? ` · ${revision.label}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <button
+              type="button"
+              className="btn-ghost mt-3 w-full"
+              disabled={!compareFrom || !compareTo || comparison.isPending}
+              onClick={() => comparison.mutate({ from: compareFrom, to: compareTo })}
+            >
+              {comparison.isPending ? 'Comparing…' : 'Compare'}
+            </button>
+
+            {comparison.isError ? (
+              <div className="mt-3">
+                <ErrorNotice error={comparison.error} title="The versions could not be compared" />
+              </div>
+            ) : null}
+
+            {comparison.data ? (
+              comparison.data.changes.length === 0 ? (
+                <p className="mt-3 text-xs text-muted" role="status">
+                  These versions are identical.
+                </p>
+              ) : (
+                <ul className="mt-3 flex flex-col gap-2">
+                  {comparison.data.changes.map((change) => (
+                    <li key={change.field} className="rounded-lg border border-line px-3 py-2">
+                      <p className="font-mono text-[11px] text-muted">{change.field}</p>
+                      <p className="mt-1 text-xs text-rose-200 line-through">{change.before ?? '—'}</p>
+                      <p className="text-xs text-emerald-200">{change.after ?? '—'}</p>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : null}
           </section>
         </aside>
       </div>
