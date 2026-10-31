@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: resumeiq-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: resume_user
+      POSTGRES_PASSWORD: resume_password
+      POSTGRES_DB: resumeiq
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resume_user -d resumeiq"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resumeiq-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://resume_user:resume_password@db:5432/resumeiq
+      - SECRET_KEY=${SECRET_KEY:-resumeiq-super-secret-jwt-development-token-key-2026}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - ENVIRONMENT=production
+      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://localhost:80"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resumeiq-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  backend_uploads:
