@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '../components/Badge'
 import { EmptyState, ErrorNotice, LoadingState, PageHeader } from '../components/States'
-import { createExport, getReport } from '../services/analyses'
+import { createExport, getReport, listExports } from '../services/analyses'
 import { cn } from '../utils/cn'
 import type { ExportRecord } from '../types/domain'
 
@@ -42,7 +42,7 @@ function ExportCard({ record }: { record: ExportRecord }) {
             {record.format.toUpperCase()}
           </p>
           <p className="mt-1 text-xs text-muted">
-            {formatBytes(record.size_bytes)} · link expires {formatTimestamp(record.expires_at)}
+            {formatBytes(record.size_bytes)} · generated {formatTimestamp(record.expires_at)}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -74,7 +74,7 @@ function ExportCard({ record }: { record: ExportRecord }) {
 export function ExportPage() {
   const { analysisId } = useParams<{ analysisId: string }>()
   const [resumeFormat, setResumeFormat] = useState<'pdf' | 'docx'>('pdf')
-  const [records, setRecords] = useState<ExportRecord[]>([])
+  const queryClient = useQueryClient()
 
   const report = useQuery({
     queryKey: ['report', analysisId],
@@ -82,17 +82,27 @@ export function ExportPage() {
     enabled: Boolean(analysisId),
   })
 
+  // Export history is persisted, so a reload keeps the files that already exist
+  // instead of pretending they were never generated.
+  const history = useQuery({
+    queryKey: ['exports', analysisId],
+    queryFn: () => listExports(analysisId as string),
+    enabled: Boolean(analysisId),
+  })
+
   const request = useMutation({
     mutationFn: (input: { kind: 'analysis_report' | 'improved_resume'; format: 'pdf' | 'docx' }) =>
       createExport({ analysis_id: analysisId as string, kind: input.kind, format: input.format }),
-    onSuccess: (record) => {
-      setRecords((current) => [record, ...current])
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['exports', analysisId] })
     },
   })
 
   if (!analysisId) {
     return <EmptyState title="No analysis selected" body="Open a resume report to export it." />
   }
+
+  const records = history.data ?? []
 
   return (
     <div className="flex flex-col gap-8">
@@ -182,21 +192,28 @@ export function ExportPage() {
 
       <section aria-labelledby="export-history" className="flex flex-col gap-3">
         <h2 id="export-history" className="text-base font-semibold text-ink">
-          Generated in this session
+          Generated for this analysis
         </h2>
 
-        {records.length === 0 ? (
+        {history.status === 'pending' ? <LoadingState label="Loading exports…" /> : null}
+        {history.status === 'error' ? (
+          <ErrorNotice error={history.error} onRetry={() => void history.refetch()} />
+        ) : null}
+
+        {history.status === 'success' && records.length === 0 ? (
           <EmptyState
             title="Nothing generated yet"
             body="Choose a format above. Each file is rendered on demand from this analysis, then served through a signed link."
           />
-        ) : (
+        ) : null}
+
+        {records.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {records.map((record) => (
               <ExportCard key={record.id} record={record} />
             ))}
           </ul>
-        )}
+        ) : null}
 
         <p className="text-xs leading-relaxed text-muted/80">
           Download links are signed, bound to your account and expire after 15 minutes. The generated

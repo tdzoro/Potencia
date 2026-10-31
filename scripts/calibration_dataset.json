@@ -1,0 +1,52 @@
+{
+  "note": "Authored fixtures with rubric-assigned tiers (1 weakest, 5 strongest), used to test whether the category weights rank resumes the way a reviewer does. This is a harness for the weights, not an empirical study: the tiers come from the rubric in docs/SCORING_METHODOLOGY.md, not from recruiter rankings.",
+  "rubric": {
+    "5": "Complete sections, every bullet quantified with scope, consistent dates, summary targeting a role.",
+    "4": "Complete sections, most bullets quantified, minor formatting inconsistency.",
+    "3": "All sections present, bullets describe activity rather than outcome, some dates missing.",
+    "2": "Missing a major section, vague bullets, no quantification, inconsistent dates.",
+    "1": "Sparse content, no summary, unreadable structure or almost no evidence."
+  },
+  "samples": [
+    {
+      "name": "senior-backend-quantified",
+      "tier": 5,
+      "text": "PRIYA NAIR\npriya.nair@example.com | +91 98765 43210 | github.com/priyanair\n\nSUMMARY\nBackend engineer with 7 years building payment infrastructure at scale.\n\nTECHNICAL SKILLS\nPython, Go, PostgreSQL, Redis, Kafka, Kubernetes, Terraform, AWS\n\nWORK EXPERIENCE\nStaff Backend Engineer\nAcme Payments | Jan 2021 - Present\n- Led a ledger rewrite that cut p99 write latency from 840ms to 190ms for 2M daily transactions\n- Designed an idempotency layer that removed 99.98% of duplicate charge incidents across 4 services\n- Mentored 6 engineers; 3 promoted within 18 months\n\nBackend Engineer\nNorthwind Systems | Jul 2018 - Dec 2020\n- Migrated a monolith to 14 services, reducing deploy time from 45 minutes to 6\n- Built reconciliation jobs processing 400M rows nightly with zero data loss\n\nEDUCATION\nB.Tech in Computer Science\nNational Institute of Technology | 2014 - 2018\n"
+    },
+    {
+      "name": "data-engineer-strong",
+      "tier": 5,
+      "text": "DANIEL OKAFOR\ndaniel.okafor@example.com | +44 7700 900123\n\nSUMMARY\nData engineer with 6 years building batch and streaming pipelines.\n\nTECHNICAL SKILLS\nPython, SQL, Spark, Airflow, dbt, Snowflake, Kafka, Terraform\n\nWORK EXPERIENCE\nSenior Data Engineer\nGlobex Data | Feb 2020 - Present\n- Rebuilt the ingestion layer, cutting daily pipeline cost by 38% ($41k/month) on 3.2TB/day\n- Introduced dbt tests that caught 27 schema regressions before production in the first quarter\n- Owned the Airflow platform serving 240 DAGs across 5 teams\n\nData Engineer\nInitech | Aug 2017 - Jan 2020\n- Delivered a streaming pipeline processing 90k events/second with 99.95% uptime\n\nEDUCATION\nB.Sc in Statistics\nUniversity of Lagos | 2013 - 2017\n"
+    },
+    {
+      "name": "mid-backend-solid",
+      "tier": 4,
+      "text": "ARJUN MEHTA\narjun.mehta@example.com | +91 98765 43210 | linkedin.com/in/arjunmehta\n\nSUMMARY\nBackend engineer with four years building payment services.\n\nTECHNICAL SKILLS\nPython, Django, PostgreSQL, Docker, AWS, Kubernetes, Redis\n\nWORK EXPERIENCE\nBackend Engineer\nAcme Payments | Mar 2022 - Present\n- Built a ledger service handling 2M daily transactions\n- Reduced p99 latency from 800ms to 220ms by adding Redis caching\n- Mentored three junior engineers\n\nSoftware Engineer\nNorthwind Systems | Jul 2020 - Feb 2022\n- Automated reconciliation reports with Python and Pandas, saving 12 hours weekly\n\nEDUCATION\nB.Tech in Computer Science\nNational Institute of Technology | 2016 - 2020\n"
+    },
+    {
+      "name": "frontend-junior-projects",
+      "tier": 3,
+      "text": "SARA LINDQVIST\nsara.lindqvist@example.com | github.com/saralind\n\nSUMMARY\nFrontend developer focused on accessible interfaces.\n\nTECHNICAL SKILLS\nTypeScript, React, CSS, Vite, Playwright\n\nPROJECTS\nBudget Tracker\n- Built a React app used by 40 people to track monthly spending\n- Wrote Playwright tests covering the import and export flows\n\nWORK EXPERIENCE\nFrontend Developer\nSmall Studio | 2023 - Present\n- Worked on the marketing site redesign\n- Helped with component library maintenance\n\nEDUCATION\nB.Sc in Media Technology\nKTH | 2019 - 2022\n"
+    },
+    {
+      "name": "activity-not-outcome",
+      "tier": 3,
+      "text": "MARCUS HALE\nmarcus.hale@example.com\n\nSUMMARY\nSoftware engineer interested in distributed systems.\n\nTECHNICAL SKILLS\nJava, Spring, MySQL, Docker\n\nWORK EXPERIENCE\nSoftware Engineer\nContoso | 2021 - Present\n- Worked on the orders service\n- Responsible for bug fixes\n- Involved in code reviews\n\nJunior Developer\nFabrikam | 2019 - 2021\n- Assisted with the reporting module\n\nEDUCATION\nB.E in Information Technology\nState University | 2015 - 2019\n"
+    },
+    {
+      "name": "missing-summary-no-dates",
+      "tier": 2,
+      "text": "AYESHA KHAN\nayesha.khan@example.com\n\nTECHNICAL SKILLS\nPython, SQL, Excel\n\nWORK EXPERIENCE\nAnalyst\nSome Company\n- Did reporting\n- Made dashboards\n\nEDUCATION\nB.Com\nCity College\n"
+    },
+    {
+      "name": "sparse-entry-level",
+      "tier": 2,
+      "text": "TOM WRIGHT\ntom.wright@example.com\n\nEXPERIENCE\nIntern\nLocal Company | 2023\n- Helped the team\n\nEDUCATION\nB.Sc Computer Science\nUniversity | 2020 - 2023\n"
+    },
+    {
+      "name": "almost-empty",
+      "tier": 1,
+      "text": "J DOE\njdoe@example.com\n\nHardworking individual seeking opportunities.\n"
+    }
+  ]
+}

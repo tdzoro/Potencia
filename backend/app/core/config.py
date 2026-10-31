@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     log_level: str = "INFO"
 
+    # Optional. When set, rate-limit counters are shared across workers; when
+    # unset, each process keeps its own budget and says so at startup.
+    redis_url: str | None = None
+
     # Where uploaded documents live. Never inside the database, never public.
     storage_root: str = "storage"
     max_upload_bytes: int = 5 * 1024 * 1024

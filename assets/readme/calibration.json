@@ -1,0 +1,87 @@
+{
+  "dataset": "calibration_dataset.json",
+  "note": "Authored fixtures with rubric-assigned tiers (1 weakest, 5 strongest), used to test whether the category weights rank resumes the way a reviewer does. This is a harness for the weights, not an empirical study: the tiers come from the rubric in docs/SCORING_METHODOLOGY.md, not from recruiter rankings.",
+  "samples": 8,
+  "results": [
+    {
+      "name": "shipped (v1.0.0)",
+      "weights": {
+        "content_quality": 25,
+        "experience": 20,
+        "skills": 15,
+        "structure": 15,
+        "ats_compatibility": 15,
+        "language_readability": 10
+      },
+      "spearman": 0.9092,
+      "pairwise_accuracy": 0.92,
+      "tier_spread": 39.42,
+      "min": 46.36,
+      "max": 88.3
+    },
+    {
+      "name": "content-heavy",
+      "weights": {
+        "content_quality": 33,
+        "experience": 19,
+        "skills": 14,
+        "structure": 14,
+        "ats_compatibility": 10,
+        "language_readability": 10
+      },
+      "spearman": 0.8729,
+      "pairwise_accuracy": 0.88,
+      "tier_spread": 40.67,
+      "min": 44.2,
+      "max": 88.86
+    },
+    {
+      "name": "ats-heavy",
+      "weights": {
+        "content_quality": 19,
+        "experience": 19,
+        "skills": 14,
+        "structure": 14,
+        "ats_compatibility": 24,
+        "language_readability": 10
+      },
+      "spearman": 0.9092,
+      "pairwise_accuracy": 0.92,
+      "tier_spread": 34.33,
+      "min": 51.32,
+      "max": 87.83
+    },
+    {
+      "name": "experience-heavy",
+      "weights": {
+        "content_quality": 25,
+        "experience": 30,
+        "skills": 15,
+        "structure": 10,
+        "ats_compatibility": 15,
+        "language_readability": 5
+      },
+      "spearman": 0.8729,
+      "pairwise_accuracy": 0.88,
+      "tier_spread": 37.68,
+      "min": 42.61,
+      "max": 88.23
+    },
+    {
+      "name": "equal-weights",
+      "weights": {
+        "content_quality": 17,
+        "experience": 17,
+        "skills": 17,
+        "structure": 17,
+        "ats_compatibility": 17,
+        "language_readability": 17
+      },
+      "spearman": 0.9092,
+      "pairwise_accuracy": 0.92,
+      "tier_spread": 40.77,
+      "min": 44.58,
+      "max": 87.17
+    }
+  ]
+}

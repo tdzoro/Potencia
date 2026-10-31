@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.core import idempotency
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.errors import PotenciaError
@@ -86,10 +88,15 @@ async def _read_limited(upload: UploadFile) -> bytes:
 
 @router.post("", status_code=201, response_model=ResumeOut)
 async def upload_resume(
+    request: Request,
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> ResumeOut:
+) -> ResumeOut | Response:
+    replayed = idempotency.replay_or_refuse(db, user, request)
+    if replayed is not None:
+        return replayed
+
     data = await _read_limited(file)
     resume = resume_service.create_resume(
         db,
@@ -98,14 +105,21 @@ async def upload_resume(
         declared_content_type=file.content_type,
         data=data,
     )
-    return _to_out(resume)
+    payload = _to_out(resume)
+    idempotency.remember(db, user, request, payload, status=201)
+    return payload
 
 
 @router.get("", response_model=ResumeListOut)
 def list_resumes(
-    limit: int = 20, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    limit: int = 20,
+    cursor: str | None = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> ResumeListOut:
-    rows = resume_service.list_resumes(db, user, limit=min(limit, 100))
+    rows, next_cursor = resume_service.list_resumes(
+        db, user, limit=min(limit, 100), cursor=cursor
+    )
     return ResumeListOut(
         items=[
             ResumeSummaryOut(
@@ -118,8 +132,8 @@ def list_resumes(
             )
             for resume in rows
         ],
-        next_cursor=None,
-        has_more=False,
+        next_cursor=next_cursor,
+        has_more=next_cursor is not None,
     )
 
 

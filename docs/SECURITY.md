@@ -43,7 +43,12 @@ CORS is an explicit origin allow-list from `POTENCIA_CORS_ORIGINS`. A wildcard w
 
 Limits follow `docs/API.md §4`: 5 attempts / 15 min on login and registration, 10 / h on uploads, 20 / h on analyses and matches, 30 / h on exports, 300 / h overall. Identity is the account when a valid token is present, otherwise the client IP. Exceeding a limit returns `429` with `Retry-After`.
 
-> **Limitation, stated plainly:** counters live in process memory. A multi-worker deployment needs a shared store (Redis) or each worker will enforce its own budget. Nothing else about the design changes.
+Counters live behind a `LimitStore` interface (`app/core/ratelimit_store.py`):
+
+- **Default** — in-process sliding window. Correct for one worker, and the API logs which mode it is in.
+- **Shared** — set `POTENCIA_REDIS_URL` and install the `redis` extra; counters then live in Redis (`INCR` + `EXPIRE ... NX`, atomic and self-expiring) and every worker enforces one budget.
+
+If a configured Redis is unreachable, the API logs an error and falls back to process memory rather than failing requests — a degraded limit is better than an outage, but it is never silent.
 
 ## What is deliberately not done
 

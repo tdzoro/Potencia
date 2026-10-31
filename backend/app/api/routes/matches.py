@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.core import idempotency
 from app.core.database import get_db
 from app.models.analysis import Match
 from app.models.user import User
@@ -40,12 +42,17 @@ def _to_out(match: Match) -> MatchOut:
 @router.post("", status_code=201, response_model=MatchOut)
 def create_match(
     payload: CreateMatchRequest,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> MatchOut:
-    return _to_out(
-        matching_service.create_match(db, user, payload.resume_id, payload.job_id)
-    )
+) -> MatchOut | Response:
+    replayed = idempotency.replay_or_refuse(db, user, request)
+    if replayed is not None:
+        return replayed
+
+    out = _to_out(matching_service.create_match(db, user, payload.resume_id, payload.job_id))
+    idempotency.remember(db, user, request, out, status=201)
+    return out
 
 
 @router.get("/{match_id}", response_model=MatchOut)

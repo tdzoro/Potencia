@@ -51,6 +51,14 @@ export function RootLayout() {
                 {item.label}
               </NavLink>
             ))}
+            {/* Without these two links a visitor had no route to the product
+                short of typing the URL. */}
+            <NavLink to="/login" className="rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-white/5 hover:text-ink">
+              Sign in
+            </NavLink>
+            <NavLink to="/register" className="btn-primary ml-1 px-3 py-1.5 text-xs">
+              Get started
+            </NavLink>
           </nav>
         </div>
       </header>

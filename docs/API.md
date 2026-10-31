@@ -85,6 +85,8 @@ GET /resumes?limit=20&cursor=eyJpZCI6...
 
 `POST /resumes`, `POST /analyses`, `POST /matches` and `POST /exports` are all guarded by `X-Idempotency-Key`. A repeated key within 24 hours returns the original response with `200` and `Idempotency-Replayed: true`. Without this, a double-submit on a slow connection bills a user twice for the same analysis.
 
+Keys are 8–200 characters, scoped to one account, and stored with the response they produced. A key reused for a different endpoint is a `409`: replaying another resource's body would be a lie. An unusable key is a `422` rather than being ignored, because silently dropping it would let the client believe it was protected.
+
 ### 1.7 Long-running work
 
 Document extraction, analysis, matching and export are asynchronous. They return `202 Accepted` with a resource in a non-terminal state, and clients poll the resource.

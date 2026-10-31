@@ -1,26 +1,25 @@
 """Per-identity rate limiting (docs/API.md §4).
 
-The limits are enforced with a sliding window held in process memory. That is
-honest for a single-worker deployment and deliberately *not* silent about its
-own limits: with more than one worker each process keeps its own counters, so a
-shared store (Redis) becomes mandatory before scaling out. SECURITY.md says so.
+The limits themselves live here; the counters live behind `LimitStore`, so the
+same middleware works for one process (memory) or many (Redis). See
+`ratelimit_store.py` for why that distinction is not cosmetic.
 
-The identity is the authenticated user when there is one, otherwise the client
-IP. IP alone is a poor identity behind NAT, which is why an authenticated
-request is counted against the account instead.
+The identity is the authenticated account when a valid token is presented,
+otherwise the client IP. IP alone is a poor identity behind NAT, which is why an
+authenticated request is counted against the account.
 """
 
 from __future__ import annotations
 
-import time
-from collections import defaultdict, deque
 from dataclasses import dataclass
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse, Response
 
+from app.core.config import get_settings
 from app.core.logging import get_request_id
+from app.core.ratelimit_store import InMemoryStore, LimitStore, build_store
 
 WINDOW_SECONDS = 3600
 
@@ -50,6 +49,14 @@ def limit_for(method: str, path: str) -> Limit | None:
     return None
 
 
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        # The first entry is the original client; proxies append to the right.
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 def _identity(request: Request) -> str:
     """The account when the request carries a valid token, else the client IP.
 
@@ -72,24 +79,19 @@ def _identity(request: Request) -> str:
     return f"ip:{_client_ip(request)}"
 
 
-def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        # The first entry is the original client; proxies append to the right.
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
-
-
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Counts hits per (identity, rule) and returns `429` with `Retry-After`."""
 
-    def __init__(self, app, *, enabled: bool = True) -> None:
+    def __init__(self, app, *, enabled: bool = True, store: LimitStore | None = None) -> None:
         super().__init__(app)
         self.enabled = enabled
-        self._hits: dict[tuple[str, str], deque[float]] = defaultdict(deque)
+        self.store = store or build_store(get_settings().redis_url)
 
     def reset(self) -> None:
-        self._hits.clear()
+        if isinstance(self.store, InMemoryStore):
+            self.store.reset()
+        else:  # pragma: no cover - Redis is only used in deployment
+            raise RuntimeError("reset() is only meaningful for the in-memory store")
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if not self.enabled:
@@ -99,15 +101,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if limit is None:
             return await call_next(request)
 
-        key = (_identity(request), f"{request.method} {request.url.path}")
-        now = time.monotonic()
-        window = self._hits[key]
+        key = f"{_identity(request)}|{request.method} {request.url.path}"
+        allowed, remaining, retry_after = self.store.hit(
+            key, limit=limit.limit, window_seconds=limit.window_seconds
+        )
 
-        while window and now - window[0] > limit.window_seconds:
-            window.popleft()
-
-        if len(window) >= limit.limit:
-            retry_after = max(1, int(limit.window_seconds - (now - window[0])))
+        if not allowed:
             return JSONResponse(
                 status_code=429,
                 headers={"Retry-After": str(retry_after)},
@@ -119,7 +118,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                             {
                                 "field": "request",
                                 "issue": "rate_limited",
-                                "meta": {"limit": limit.limit, "window_seconds": limit.window_seconds},
+                                "meta": {
+                                    "limit": limit.limit,
+                                    "window_seconds": limit.window_seconds,
+                                },
                             }
                         ],
                         "request_id": get_request_id(),
@@ -127,8 +129,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        window.append(now)
         response = await call_next(request)
         response.headers["X-RateLimit-Limit"] = str(limit.limit)
-        response.headers["X-RateLimit-Remaining"] = str(max(0, limit.limit - len(window)))
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
         return response

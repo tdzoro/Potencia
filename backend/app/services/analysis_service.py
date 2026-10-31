@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import PotenciaError
+from app.core.pagination import decode_cursor, encode_cursor
 from app.intelligence.scoring.engine import score_resume
 from app.models.analysis import Analysis
 from app.models.content import Resume
@@ -81,15 +82,23 @@ def get_analysis(db: Session, user: User, analysis_id: uuid.UUID) -> Analysis:
     return analysis
 
 
-def list_analyses(db: Session, user: User, limit: int = 20) -> list[Analysis]:
-    return list(
+def list_analyses(
+    db: Session, user: User, limit: int = 20, cursor: str | None = None
+) -> tuple[list[Analysis], str | None]:
+    """Newest first, keyset-paginated by id (UUIDv7 is time-ordered)."""
+    statement = select(Analysis).where(Analysis.user_id == user.id)
+    if cursor:
+        statement = statement.where(Analysis.id < decode_cursor(cursor))
+
+    rows = list(
         db.scalars(
-            select(Analysis)
-            .where(Analysis.user_id == user.id)
-            .order_by(Analysis.created_at.desc())
-            .limit(limit)
+            statement.order_by(Analysis.id.desc()).limit(limit + 1)
         )
     )
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    next_cursor = encode_cursor(rows[-1].id) if has_more and rows else None
+    return rows, next_cursor
 
 
 def delete_analysis(db: Session, user: User, analysis_id: uuid.UUID) -> None:

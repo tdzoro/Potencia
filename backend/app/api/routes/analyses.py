@@ -9,18 +9,21 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.api.routes.exports import to_api_out
+from app.core import idempotency
 from app.core.database import get_db
 from app.models.analysis import Analysis
 from app.models.user import User
 from app.schemas.recommendations import RecommendationOut
-from app.schemas.resumes import AnalysisDetailOut, AnalysisListOut, AnalysisOut
+from app.schemas.resumes import AnalysisDetailOut, AnalysisListOut, AnalysisOut, ExportOut
 from app.schemas.scores import ATSReport, Finding, ScoreBundle, Strength
-from app.services import analysis_service, recommendation_service
+from app.services import analysis_service, export_service, recommendation_service
 
 router = APIRouter(prefix="/analyses", tags=["analyses"])
 
@@ -51,18 +54,30 @@ def _to_detail(analysis: Analysis) -> AnalysisDetailOut:
 @router.post("", status_code=201, response_model=AnalysisDetailOut)
 def create_analysis(
     payload: CreateAnalysisRequest,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> AnalysisDetailOut:
+) -> AnalysisDetailOut | Response:
+    replayed = idempotency.replay_or_refuse(db, user, request)
+    if replayed is not None:
+        return replayed
+
     analysis = analysis_service.create_analysis(db, user, payload.resume_id)
-    return _to_detail(analysis)
+    detail = _to_detail(analysis)
+    idempotency.remember(db, user, request, detail, status=201)
+    return detail
 
 
 @router.get("", response_model=AnalysisListOut)
 def list_analyses(
-    limit: int = 20, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    limit: int = 20,
+    cursor: str | None = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> AnalysisListOut:
-    rows = analysis_service.list_analyses(db, user, limit=min(limit, 100))
+    rows, next_cursor = analysis_service.list_analyses(
+        db, user, limit=min(limit, 100), cursor=cursor
+    )
     return AnalysisListOut(
         items=[
             AnalysisOut(
@@ -76,7 +91,9 @@ def list_analyses(
                 failure=analysis.failure,
             )
             for analysis in rows
-        ]
+        ],
+        next_cursor=next_cursor,
+        has_more=next_cursor is not None,
     )
 
 
@@ -92,6 +109,19 @@ def read_report(
     analysis_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> AnalysisDetailOut:
     return _to_detail(analysis_service.get_analysis(db, user, analysis_id))
+
+
+@router.get("/{analysis_id}/exports", response_model=list[ExportOut])
+def list_analysis_exports(
+    analysis_id: uuid.UUID,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[ExportOut]:
+    return [
+        to_api_out(request, record)
+        for record in export_service.list_exports(db, user, analysis_id)
+    ]
 
 
 @router.get("/{analysis_id}/recommendations", response_model=list[RecommendationOut])

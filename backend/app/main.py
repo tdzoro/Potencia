@@ -26,7 +26,13 @@ _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 
 _ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 _ALLOWED_HEADERS = ["Authorization", "Content-Type", "X-Request-ID", "X-Idempotency-Key"]
-_EXPOSED_HEADERS = ["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining", "Retry-After"]
+_EXPOSED_HEADERS = [
+    "X-Request-ID",
+    "X-RateLimit-Limit",
+    "X-RateLimit-Remaining",
+    "Retry-After",
+    "Idempotency-Replayed",
+]
 
 
 def _resolve_request_id(request: Request) -> str:

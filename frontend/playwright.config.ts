@@ -1,0 +1,41 @@
+import { defineConfig, devices } from '@playwright/test'
+
+/**
+ * Browser suite for the authenticated journey.
+ *
+ * It runs against a real stack (API + built web app) and seeds its own account
+ * through the API, so it never depends on fixtures already in a database.
+ *
+ *   API_BASE_URL=http://localhost:8010 \
+ *   PLAYWRIGHT_BASE_URL=http://localhost:4173 \
+ *   npm run e2e
+ *
+ * The system Chrome is used by default: downloading a second browser would add
+ * ~150MB to a machine that already has one.
+ */
+export default defineConfig({
+  testDir: './e2e',
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
+  fullyParallel: false,
+  workers: 1,
+  reporter: [['list']],
+  use: {
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4173',
+    trace: 'off',
+    screenshot: 'off',
+    video: 'off',
+  },
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome',
+          args: ['--no-sandbox'],
+        },
+      },
+    },
+  ],
+})

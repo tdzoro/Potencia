@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import PotenciaError
+from app.core.pagination import decode_cursor, encode_cursor
 from app.core.storage import get_store
 from app.document.extraction import extract
 from app.document.validation import validate_upload
@@ -109,15 +110,19 @@ def get_resume(db: Session, user: User, resume_id: uuid.UUID) -> Resume:
     return resume
 
 
-def list_resumes(db: Session, user: User, limit: int = 20) -> list[Resume]:
-    return list(
-        db.scalars(
-            select(Resume)
-            .where(Resume.user_id == user.id)
-            .order_by(Resume.created_at.desc())
-            .limit(limit)
-        )
-    )
+def list_resumes(
+    db: Session, user: User, limit: int = 20, cursor: str | None = None
+) -> tuple[list[Resume], str | None]:
+    """Newest first, keyset-paginated by id (UUIDv7 is time-ordered)."""
+    statement = select(Resume).where(Resume.user_id == user.id)
+    if cursor:
+        statement = statement.where(Resume.id < decode_cursor(cursor))
+
+    rows = list(db.scalars(statement.order_by(Resume.id.desc()).limit(limit + 1)))
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    next_cursor = encode_cursor(rows[-1].id) if has_more and rows else None
+    return rows, next_cursor
 
 
 def delete_resume(db: Session, user: User, resume_id: uuid.UUID) -> None:

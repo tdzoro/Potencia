@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.core import idempotency
 from app.core.database import get_db
 from app.core.errors import PotenciaError
 from app.models.analysis import Export
@@ -31,7 +32,8 @@ def _download_url(request: Request, record: Export) -> str | None:
     return f"{base}?token={token}"
 
 
-def _to_out(request: Request, record: Export) -> ExportOut:
+def to_api_out(request: Request, record: Export) -> ExportOut:
+    """The public shape of an export, including its signed download URL."""
     return ExportOut.model_validate(export_service.to_payload(record, _download_url(request, record)))
 
 
@@ -41,7 +43,11 @@ def create_export(
     request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> ExportOut:
+) -> ExportOut | Response:
+    replayed = idempotency.replay_or_refuse(db, user, request)
+    if replayed is not None:
+        return replayed
+
     if payload.kind == "analysis_report" and payload.format != "pdf":
         raise PotenciaError(
             "validation_error",
@@ -52,7 +58,9 @@ def create_export(
     record = export_service.create_export(
         db, user, analysis_id=payload.analysis_id, kind=payload.kind, fmt=payload.format
     )
-    return _to_out(request, record)
+    out = to_api_out(request, record)
+    idempotency.remember(db, user, request, out, status=202)
+    return out
 
 
 @router.get("/{export_id}", response_model=ExportOut)
@@ -62,7 +70,7 @@ def read_export(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ExportOut:
-    return _to_out(request, export_service.get_export(db, user, export_id))
+    return to_api_out(request, export_service.get_export(db, user, export_id))
 
 
 @router.get("/{export_id}/download", name="download_export")

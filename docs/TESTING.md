@@ -1,70 +1,85 @@
 # Testing
 
-## Running the suite
+## Running the suites
 
 ```bash
-cd backend
-python -m pytest tests -q
+cd backend && pytest -q          # 129 tests, hermetic
+cd frontend && npm run build     # strict typecheck + production build
+cd frontend && npm run e2e       # 9 browser tests, needs a live stack
 ```
 
-108 tests. The suite is hermetic: an in-memory SQLite database per test, no PostgreSQL, no network, no AI provider. Uploads land in a temporary directory that is deleted with the process.
+The backend suite needs no PostgreSQL, no network and no AI provider: it runs on an in-memory SQLite database per test, with uploads in a temporary directory. The browser suite needs a running API and a built web app; it seeds its own account, so it never depends on data already in a database.
 
-The schema under test is the same `Base.metadata` Alembic reads, so a model change that is not migrated still shows up here — but migrations themselves are verified separately (below).
-
-## What is covered
+## Backend
 
 | Area | File | Behaviour asserted |
 |:--|:--|:--|
 | Health and errors | `test_health.py` | Envelope shape, request-id provenance, degraded database reporting |
 | Authentication | `test_auth.py` | Registration, login, refresh, logout, identical failures for unknown email and wrong password, token-version revocation |
-| Document pipeline | `test_document.py` | Extension and magic-byte validation, size limits, extraction of text layers, empty and scanned documents, page counts |
+| Document pipeline | `test_document.py` | Extension and magic-byte validation, size limits, text-layer extraction, empty and scanned documents, page counts |
 | Parsing | `test_parser.py` | Section detection, contact extraction, date normalisation, confidence, refusal to invent missing fields |
-| Scoring | `test_scoring.py` | Criterion-level arithmetic, applicability (missing ≠ zero), determinism, score/impact reconciliation |
+| Scoring | `test_scoring.py` | Criterion arithmetic, applicability (missing ≠ zero), determinism, score/impact reconciliation |
 | ATS | `test_ats.py` | Table, column, image-only and scanned hazards; estimate bounds; disclaimer text |
 | Resumes API | `test_resumes_api.py` | Upload → parse → analyse → report, cross-user isolation, disguised files, cascade delete |
-| Matching | `test_matching.py` | Requirement bucketing, matched/partial/weakly-demonstrated/absent states, year arithmetic, determinism |
-| Recommendations & revisions | `test_recommendations.py` | Evidence on every card, idempotent generation, accept/reject/edit, metric gaps asked not invented, revision 0 immutability, foreign parent rejection |
+| Matching | `test_matching.py` | Requirement bucketing (`need` vs `nice to have`), four skill states, year arithmetic, determinism |
+| Recommendations and revisions | `test_recommendations.py` | Evidence on every card, idempotent generation, accept/reject/edit, metric gaps asked not invented, revision 0 immutability, foreign parent rejected |
 | Exports | `test_exports.py` | Downloaded PDFs and DOCX re-opened and searched for the real score and content, newest revision exported, tampered token rejected |
 | Security | `test_security.py` | Rate limiting with `Retry-After`, security headers, no internal leakage |
+| Idempotency | `test_idempotency.py` | Replay returns the original body and creates nothing, keys are per account, cross-endpoint reuse is `409`, short keys are `422`, expiry allows reuse |
+| Pagination | `test_pagination.py` | Pages walk without gaps or repeats, newest first, malformed cursor is `422` |
+| Rate-limit store | `test_ratelimit_store.py` | Middleware honours an injected store, in-memory window, Redis `INCR`+`EXPIRE NX` semantics, unreachable Redis degrades |
+| Calibration | `test_calibration.py` | Spearman on monotone and tied data, applicability-aware totals, normalisation |
 
 ## Tests that would fail if the product lied
 
-A few assertions exist specifically because the easy implementation is the dishonest one:
-
-- **Score reconciliation** — `sum(findings.score_impact) == 100 - overall` within 0.15. If the findings stop explaining the number, this fails.
+- **Score reconciliation** — `sum(findings.score_impact) == 100 - overall` within 0.15.
 - **Evidence required** — every finding must carry at least one verbatim excerpt.
-- **No invented metrics** — a recommendation about an unquantified bullet either proposes text with no digits, or asks the user for the real figure.
-- **Partial is not absent** — a skill listed but not demonstrated is `partial`; a skill nowhere in the document is `absent`. Collapsing them would tell people to add skills they have.
+- **No invented metrics** — a recommendation about an unquantified bullet either proposes text containing no digits, or asks the user for the real figure.
+- **Partial is not absent** — a skill listed but not demonstrated is `partial`; a skill nowhere in the document is `absent`.
 - **Original is immutable** — after a revision is saved, revision 0 is byte-identical.
+- **Idempotency creates nothing** — a replayed create must not add a second row.
+
+## Browser suite
+
+`frontend/e2e/journey.spec.ts` drives the real UI in Chrome:
+
+| Test | What it proves |
+|:--|:--|
+| Landing copy and sign-in link | A visitor can reach authentication |
+| Guard on `/app` | An unauthenticated visitor is redirected to `/login` |
+| Dashboard | The stored score is rendered, not a placeholder |
+| Report | Score, ATS section and priority actions are present |
+| Recommendation | Accept persists across a reload |
+| Export | A generated report exposes a signed `token=` link |
+| Match | A pasted description produces an estimate and names `Terraform` as a gap |
+| Studio | A summary edit saves as a new revision |
+| History | The uploaded resume and its analysis are listed |
+
+The suite found a real gap when first run: the landing page had no route to sign-in. The fix was in the application, not the test.
 
 ## Migrations
 
-The suite does not exercise Alembic. CI applies `upgrade head → downgrade base → upgrade head` against a real PostgreSQL 16 service container, which catches a migration that is missing, out of order or irreversible.
-
-Locally:
+The backend suite does not exercise Alembic. CI applies `upgrade head → downgrade base → upgrade head` against a real PostgreSQL 16 service container, which catches a migration that is missing, out of order or irreversible.
 
 ```bash
 cd backend
-POTENCIA_DATABASE_URL=postgresql+psycopg://potencia:potencia@localhost:5432/potencia \
-  alembic upgrade head
+POTENCIA_DATABASE_URL=postgresql+psycopg://potencia:potencia@localhost:5432/potencia alembic upgrade head
 ```
 
-## Frontend
+## Calibration
 
 ```bash
-cd frontend
-npm run typecheck   # strict, noUncheckedIndexedAccess and noUnusedLocals on
-npm run build
+PYTHONPATH=backend backend/.venv/bin/python scripts/calibrate.py
 ```
 
-The typecheck is the gate: the API payload types in `src/types/domain.ts` mirror `docs/API.md`, so a contract drift breaks compilation rather than surfacing as a blank panel at runtime.
+Parses eight fixtures, scores them, and compares weight vectors by rank correlation. It writes `assets/readme/calibration.json`. The dataset is rubric-assigned, not recruiter-ranked — the script says so, because the difference matters.
 
-## End-to-end
+## Frontend checks
 
-`scripts/readme_metrics.py` drives a live instance through the whole journey — register, upload, analyse, recommend, revise, export, match — and writes the measurements used in the README. If a stage breaks, that script fails and the numbers cannot be regenerated.
+`npm run typecheck` is the gate: `src/types/domain.ts` mirrors `docs/API.md`, so a contract drift breaks compilation instead of surfacing as a blank panel at runtime. `npm run build` runs it before bundling.
 
 ## Known gaps
 
-- No browser automation suite; the frontend is verified by typecheck, build and a headless render of every route.
-- No load testing. The latency figures are single-user measurements on a local PostgreSQL container.
+- No load testing; latency figures are single-user.
 - No fuzzing of the document parsers beyond the malformed fixtures.
+- OCR has no installed engine, so that path is untested end to end (the detection and reporting around it is tested).

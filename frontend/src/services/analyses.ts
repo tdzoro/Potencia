@@ -94,6 +94,11 @@ export function getExport(exportId: string): Promise<ExportRecord> {
   return authedRequest<ExportRecord>(`/api/v1/exports/${exportId}`)
 }
 
+/** Every export generated for one analysis, newest first. */
+export function listExports(analysisId: string): Promise<ExportRecord[]> {
+  return authedRequest<ExportRecord[]>(`/api/v1/analyses/${analysisId}/exports`)
+}
+
 export function deleteExport(exportId: string): Promise<void> {
   return authedRequest<void>(`/api/v1/exports/${exportId}`, { method: 'DELETE' })
 }

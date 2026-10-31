@@ -6,8 +6,8 @@
 
 **AI Resume Intelligence — explainable scoring, ATS compatibility, job matching, and edits you approve.**
 
-[![Tests](https://img.shields.io/badge/tests-108%20passing-6D3BF5?style=flat-square)](docs/TESTING.md)
-[![API](https://img.shields.io/badge/API-30%20operations-22D3EE?style=flat-square)](docs/API.md)
+[![Tests](https://img.shields.io/badge/tests-129%20backend%20·%209%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![API](https://img.shields.io/badge/API-31%20operations-22D3EE?style=flat-square)](docs/API.md)
 [![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
 [![Licence](https://img.shields.io/badge/licence-MIT-9AA3C7?style=flat-square)](LICENSE)
 
@@ -90,12 +90,26 @@ overall = Σ ( category_score × weight ) / Σ ( weight of applicable categories
 
 Two rules do the heavy lifting:
 
-1. **Missing is not zero.** A section that does not apply to a candidate leaves the denominator instead of scoring 0 — a fresher without work experience is not penalised for being a fresher, and the report states the applicable weight (here 100 of 100).
+1. **Missing is not zero.** A section that does not apply leaves the denominator instead of scoring 0 — a fresher is not penalised for having no employment history, and every report states the applicable weight (here 100 of 100).
 2. **Every deduction cites text.** A criterion that fires must attach a verbatim excerpt. A finding without evidence is a bug, and the API refuses to serialise one.
 
 ![Category scores](assets/readme/score-breakdown.png)
 
-The weights are **product-design hypotheses**, not empirically validated industry standards. Calibrating them requires a reviewed dataset and expert ranking; until that exists, the honest description is "a defensible starting point, versioned and stated in every report" — (`methodology_version` is stored per analysis, so an old report never silently changes meaning).
+---
+
+## Are the weights defensible? A harness, not a claim
+
+`scripts/calibrate.py` parses eight fixtures with the real parser, scores them with the real engine, and measures whether each candidate weight vector ranks them the way the rubric did.
+
+| Candidate | Spearman | Pairwise | Tier spread |
+|:--|--:|--:|--:|
+| **shipped (v1.0.0)** | **0.909** | **0.920** | **39.4** |
+| content-heavy | 0.873 | 0.880 | 40.7 |
+| ats-heavy | 0.909 | 0.920 | 34.3 |
+| experience-heavy | 0.873 | 0.880 | 37.7 |
+| equal-weights | 0.909 | 0.920 | 40.8 |
+
+No alternative beats the shipped vector, so the weights stay — and now the claim is reproducible rather than asserted. This is still **not** an empirical validation: the tiers are rubric-assigned fixtures, not recruiter rankings. Result stored in [`assets/readme/calibration.json`](assets/readme/calibration.json).
 
 ---
 
@@ -103,13 +117,13 @@ The weights are **product-design hypotheses**, not empirically validated industr
 
 ![Findings by severity](assets/readme/findings.png)
 
-13 findings: **2 high, 6 medium, 5 low**. Impact-ordered, not severity-ordered, so the first action is the one that buys the most points. Each carries the excerpt that triggered it, an explanation, and a remediation.
+13 findings: **2 high, 6 medium, 5 low**. Impact-ordered, not severity-ordered, so the first action buys the most points. Each carries the excerpt that triggered it, an explanation, and a remediation.
 
 ---
 
-## Widget-free matching: three states, never two
+## Matching: three states, never two
 
-A skill in a job description can be in one of **three** positions relative to a resume. Most tools collapse them into two and end up telling people to add skills they already have.
+A skill in a job description has three possible positions relative to a resume. Most tools collapse them into two and end up telling people to add skills they already have.
 
 ```mermaid
 flowchart LR
@@ -133,7 +147,7 @@ On the sample job description:
 | Kafka | absent | Nowhere in the document |
 | GraphQL *(preferred)* | absent | Nowhere in the document |
 
-The resulting match is **49.0**, which reads low — and it should. The candidate claims seven technologies and demonstrates one. That is the finding, not a bug: an unevidenced claim is worth less than a visible gap, so the gap advice says *"do not add it unless you have genuinely used it."*
+The match is **49.0**, which reads low — and it should. The candidate claims seven technologies and demonstrates one. That is the finding, not a bug: an unevidenced claim is worth less than a visible gap, so the gap advice says *"do not add it unless you have genuinely used it."*
 
 ---
 
@@ -141,7 +155,7 @@ The resulting match is **49.0**, which reads low — and it should. The candidat
 
 The ATS figure separates **document parseability** from **job keyword relevance** — two different questions that tools routinely merge into one misleading number.
 
-Checks cover text-layer extraction, reading order, tables and columns, headers and footers, heading clarity, contact extractability, date consistency and non-standard glyphs. Every check reports `pass` / `warn` / `fail` with evidence and a correction. The estimate **88.2** here reflects a clean single-column text-layer PDF; the disclaimer travels with it in the API, the report, and the PDF:
+Checks cover text-layer extraction, reading order, tables and columns, headers and footers, heading clarity, contact extractability, date consistency and non-standard glyphs. Every check reports `pass` / `warn` / `fail` with evidence and a correction. The estimate **88.2** reflects a clean single-column text-layer PDF, and the disclaimer travels with it in the API, the report and the PDF:
 
 > ATS compatibility estimate. Not a prediction of screening outcomes.
 
@@ -151,16 +165,26 @@ Checks cover text-layer extraction, reading order, tables and columns, headers a
 
 The engine produces 13 recommendations from 13 findings: 3 concrete rewrites, 4 that ask the user for a fact, and the rest structural fixes with a stated next step.
 
-The rule is absolute — a rewrite may only restate what the user already wrote:
-
 | Situation | What POTENCIA does | What it will never do |
 |:--|:--|:--|
-| Bullet has no metric | Asks *"What scale did this work operate at — records, token requests, users, revenue, or time saved? Give the real figure."* | Insert a plausible number |
+| Bullet has no metric | Asks *"What scale did this work operate at — records, requests per day, users, revenue, or time saved? Give the real figure."* | Insert a plausible number |
 | Weak opener ("Responsible for…") | Proposes "Owned …" | Invent scope |
 | Skill claimed, never used | Points at the gap and asks which role used it | Add a project |
 | Anything factual | Requires your click in the Improvement Studio | Auto-replace your resume |
 
 The original parse is **revision 0** and is never overwritten. An edit is a new node pointing at its parent, so history is a tree you can always walk back.
+
+---
+
+## Reliability that is enforced, not aspirational
+
+| Concern | Behaviour |
+|:--|:--|
+| Double submits | `X-Idempotency-Key` replays the original response for 24h; reusing a key on another endpoint is `409` |
+| Paging | Keyset cursors on UUIDv7 — new rows arriving mid-walk never duplicate or skip a record |
+| Cross-worker limits | Redis-backed counters when `POTENCIA_REDIS_URL` is set; process memory otherwise, logged at startup |
+| Downloads | HMAC-signed, account-bound, 15-minute capability URLs |
+| Retention | Exports expire in 24h; `python -m app.tasks.retention` removes the files and rows |
 
 ---
 
@@ -176,7 +200,7 @@ The original parse is **revision 0** and is never overwritten. An edit is a new 
 | Job match | 17.6 ms | — |
 | PDF export | 87.2 ms | 107.7 ms |
 
-20 runs each, single user, no caching layer. These are **not** load-test figures and the README will not pretend otherwise.
+20 runs each, single user, no caching layer. These are **not** load-test figures and will not be described as such.
 
 ---
 
@@ -190,9 +214,10 @@ flowchart TB
     subgraph API["API — FastAPI"]
         R[Routes<br/>auth · resumes · analyses · jobs<br/>matches · recommendations · exports]
         S[Services<br/>ownership · orchestration · export]
+        X[Cross-cutting<br/>idempotency · rate limits · pagination]
     end
     subgraph Intelligence["Intelligence — deterministic"]
-        D[Document<br/>validate · extract · OCR fallback]
+        D[Document<br/>validate · extract]
         P[Parser<br/>sections · entities · confidence]
         SC[Scoring<br/>27 criteria · 6 categories]
         AT[ATS<br/>structural hazards]
@@ -210,9 +235,8 @@ flowchart TB
     S --> RC
     S --> DB
     S --> FS
+    X -.-> R
 ```
-
-Every module has one responsibility, and the frontend never talks to a model or a storage path — it talks to the API.
 
 ---
 
@@ -224,7 +248,7 @@ cp .env.example .env            # set POTENCIA_SECRET_KEY
 docker compose up --build       # API on :8000, web on :8080
 ```
 
-Local development, with the API on the host:
+Local development:
 
 ```bash
 cd backend
@@ -244,13 +268,13 @@ cd frontend && npm install && npm run dev
 
 ## API surface
 
-30 operations across 22 paths, all under `/api/v1` except health. Full contracts in [`docs/API.md`](docs/API.md).
+31 operations across 23 paths, all under `/api/v1` except health. Full contracts in [`docs/API.md`](docs/API.md).
 
 | Group | Operations |
 |:--|:--|
 | Auth | register · login · refresh · logout · me · delete account |
 | Resumes | upload · list · get · revisions (list, create) · delete |
-| Analyses | create · list · get · report · recommendations · delete |
+| Analyses | create · list · get · report · recommendations · exports · delete |
 | Jobs & matches | create · list · get · delete · match · read |
 | Recommendations | decide (accept · reject · edit) |
 | Exports | create · get · signed download · delete |
@@ -277,11 +301,14 @@ Full detail, including what is deliberately not implemented yet, is in [`docs/SE
 ## Testing
 
 ```bash
-cd backend && pytest -q        # 108 tests, no database or network required
-cd frontend && npm run build   # strict typecheck + production build
+cd backend && pytest -q          # 129 tests, no database or network required
+cd frontend && npm run build     # strict typecheck + production build
+cd frontend && npm run e2e       # 9 browser tests against a live stack
 ```
 
-Tests that exist specifically to stop the product lying: score reconciliation, evidence on every finding, *no digits in an invented rewrite*, `partial` never collapsing into `absent`, and revision 0 being byte-identical after an edit. Details in [`docs/TESTING.md`](docs/TESTING.md).
+The browser suite seeds its own account through the API and drives the real UI: the score is asserted from the DOM, a recommendation is accepted and re-read after reload, a PDF is generated and its signed link verified, a job description produces a named gap, and a revision is saved without touching the original.
+
+Tests that exist to stop the product lying: score reconciliation, evidence on every finding, *no digits in an invented rewrite*, `partial` never collapsing into `absent`, and revision 0 being byte-identical after an edit. Details in [`docs/TESTING.md`](docs/TESTING.md).
 
 ---
 
@@ -289,12 +316,13 @@ Tests that exist specifically to stop the product lying: score reconciliation, e
 
 Stated here rather than discovered later:
 
-- **The weights are not validated.** They are defensible, versioned and disclosed; calibrated they are not.
-- **The ATS score simulates no specific vendor.** It measures structural parseability, which is the honest shared denominator.
-- **No LLM in the request path.** Recommendations are rules. The provider seam exists and validates any rewrite before use; adding a model is a deliberate future step, not a hidden dependency.
-- **Rate limits are per process.** Multi-worker deployments need a shared store.
-- **No malware scanning** on uploads, and no purchase of email verification.
-- **Latency figures are single-user.** There is no load test behind them.
+- **The weights are not empirically validated.** A reproducible harness shows the shipped vector is not beaten by plausible alternatives on eight rubric-ranked fixtures; that is a floor, not a study.
+- **The ATS score simulates no specific vendor.** It measures structural parseability, the honest shared denominator.
+- **No LLM in the request path.** Recommendations are rules; the provider seam exists and validates any rewrite before use.
+- **No OCR engine installed.** Scanned PDFs are detected and reported as `partial` with `ocr_not_performed` rather than silently scored on bad text.
+- **No malware scanning** on uploads; no email verification flow.
+- **Latency is single-user.** There is no load test behind these numbers.
+- **Registration is limited to 5 per 15 minutes per identity**, which a shared office IP can reach. The browser suite seeds once for that reason.
 
 ---
 
