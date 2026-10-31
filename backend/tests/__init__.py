@@ -1,1 +1,1 @@
-# Tests Package
+"""Backend test suite."""

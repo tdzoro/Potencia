@@ -1,2 +1,3 @@
-"""ResumeIQ Backend Application Package."""
-__version__ = "1.0.0"
+"""POTENCIA API application package."""
+
+__version__ = "0.1.0"

@@ -1,26 +1,25 @@
-FROM python:3.12-slim
+FROM python:3.12-slim AS runtime
 
-# Prevent python from writing pyc files and buffering stdout/stderr
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
 
-# Install system dependencies needed for compiling some python wheels if needed
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# A non-root runtime user: the API parses untrusted documents, so it must not
+# hold privileges it never needs.
+RUN adduser --disabled-password --gecos "" --uid 10001 potencia
 
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
-
-# Create directory for uploads
-RUN mkdir -p /app/uploads
+COPY --chown=potencia:potencia . .
+USER potencia
 
 EXPOSE 8000
+
+# Uses the interpreter rather than curl so the image stays dependency-light.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status == 200 else 1)"
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

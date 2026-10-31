@@ -254,14 +254,14 @@ When something breaks: reproduce it, find the root cause, fix the cause, add a r
 
 ## Repository Status
 
-> **Current phase: 0 — Repository Audit (complete).**
-> The repository contains its identity, its audit and its specification. Application code begins in Phase 2 (Foundation); nothing above is claimed as built yet.
+> **Current phase: 2 — Foundation (complete).**
+> The identity, specification, audit and a running application foundation are in place: the API serves `/health` with live dependency status, the interface is served and connected to it, and Compose brings up PostgreSQL. The resume engines arrive in Phases 4–9 — nothing above is claimed as usable yet.
 
 | Phase | Objective | Status |
 |:-:|:--|:-:|
 | 0 | Repository audit & implementation plan | ✅ |
-| 1 | Product specification & system design | ○ |
-| 2 | Foundation: FastAPI, React, Docker, health checks | ○ |
+| 1 | Product specification & system design | ✅ |
+| 2 | Foundation: FastAPI, React, Docker, health checks | ✅ |
 | 3 | Database, authentication, data isolation | ○ |
 | 4 | Document ingestion & parsing engine | ○ |
 | 5 | Resume intelligence & understanding | ○ |
@@ -292,9 +292,32 @@ Live detail — files changed, tests run, known bugs, technical debt, blockers �
 | **Intelligence** | Rule-based scoring · spaCy · sentence-transformers · skill taxonomy · provider-agnostic LLM orchestration |
 | **Infrastructure** | Docker · Docker Compose · GitHub Actions · structured logging |
 
-### Verified development toolchain
+## Local Development
 
-The audit environment already carries Node `22.16.0`, npm `10.9.2`, Python `3.12.3`, Docker `29.9.2` with Compose `v5.6.1`. PostgreSQL and Redis are provisioned through Compose rather than installed on the host, so no local database setup is required. Bootstrap commands are published with the Phase 2 foundation.
+Requires Node 20+, Python 3.12+ and Docker. PostgreSQL comes from Compose — there is nothing to install on the host.
+
+```bash
+# 1 — database
+docker compose up -d db
+
+# 2 — API  →  http://localhost:8000
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp ../.env.example .env        # then set POTENCIA_DATABASE_URL
+uvicorn app.main:app --reload
+
+# 3 — interface  →  http://localhost:5173
+cd frontend
+npm install
+npm run dev
+```
+
+`GET /health` reports the API and its database dependency, and reaching it through the Vite dev server exercises the proxy. If port 8000 is already taken, run uvicorn on another port and set `POTENCIA_API_TARGET` to match before `npm run dev`.
+
+The whole stack in containers: `docker compose up --build` — API on `:8000`, interface on `:8080`.
+
+**Verified on this foundation:** 6 backend tests passing, frontend typecheck and production build clean, `/health` returning `200` against PostgreSQL and `503 degraded` when the database is stopped, CORS rejecting a non-allow-listed origin, and request ids propagated into JSON logs. Redis is deliberately absent — nothing yet requires background work.
 
 ---
 
@@ -304,10 +327,10 @@ The audit environment already carries Node `22.16.0`, npm `10.9.2`, Python `3.12
 |:--|:--|:-:|
 | [`docs/REPOSITORY_AUDIT.md`](docs/REPOSITORY_AUDIT.md) | Audit, technical debt, architecture proposal, implementation sequence | ✅ |
 | [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) | Phase tracker, tests executed, known issues, debt, blockers | ✅ |
-| `docs/SRS.md` | Software requirements specification | Phase 1 |
-| `docs/ARCHITECTURE.md` | Component boundaries and data flow | Phase 1 |
-| `docs/API.md` | Versioned REST contracts | Phase 1 |
-| `docs/SCORING_METHODOLOGY.md` | Criterion definitions, weights, calibration record | Phase 1 |
+| [`docs/SRS.md`](docs/SRS.md) | Personas, journeys, functional and non-functional requirements | ✅ |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Component boundaries, lifecycles, failure matrix, ADRs | ✅ |
+| [`docs/API.md`](docs/API.md) | Versioned REST contracts and error envelope | ✅ |
+| [`docs/SCORING_METHODOLOGY.md`](docs/SCORING_METHODOLOGY.md) | Criterion definitions, weights, calibration plan | ✅ |
 | `docs/SECURITY.md` | Threat model, controls, privacy policy | Phase 13 |
 | `docs/TESTING.md` | Test strategy, fixtures, evaluation datasets | Phase 14 |
 

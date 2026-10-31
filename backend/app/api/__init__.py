@@ -1,1 +1,1 @@
-# API Package
+"""HTTP layer: routers and request wiring."""

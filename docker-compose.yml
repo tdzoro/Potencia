@@ -1,54 +1,64 @@
+# POTENCIA — local development stack.
+#
+#   docker compose up --build      api on :8000, web on :8080
+#   docker compose up -d db        database only (for running the API on the host)
+#
+# The database credentials below are local development defaults for a container
+# bound to localhost. Production configuration lives in the deployment guide and
+# never stores secrets in this file.
+#
+# Redis is deliberately absent: nothing in Phases 2–3 requires background work.
+# It arrives with the asynchronous task runner, not before.
+
+name: potencia
+
 services:
   db:
     image: postgres:16-alpine
-    container_name: resumeiq-postgres
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: resume_user
-      POSTGRES_PASSWORD: resume_password
-      POSTGRES_DB: resumeiq
+      POSTGRES_USER: potencia
+      POSTGRES_PASSWORD: potencia
+      POSTGRES_DB: potencia
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - potencia-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U resume_user -d resumeiq"]
+      test: ["CMD-SHELL", "pg_isready -U potencia -d potencia"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 12
 
-  backend:
+  api:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    container_name: resumeiq-backend
-    restart: always
+    restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://resume_user:resume_password@db:5432/resumeiq
-      - SECRET_KEY=${SECRET_KEY:-resumeiq-super-secret-jwt-development-token-key-2026}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
-      - ENVIRONMENT=production
-      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://localhost:80"]
+      POTENCIA_ENVIRONMENT: development
+      POTENCIA_APP_VERSION: 0.1.0
+      POTENCIA_DATABASE_URL: postgresql+psycopg://potencia:potencia@db:5432/potencia
+      POTENCIA_SECRET_KEY: ${POTENCIA_SECRET_KEY:-dev-insecure-change-me}
+      POTENCIA_CORS_ORIGINS: "http://localhost:5173,http://localhost:8080"
+      POTENCIA_LOG_LEVEL: ${POTENCIA_LOG_LEVEL:-INFO}
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - backend_uploads:/app/uploads
 
-  frontend:
+  web:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: resumeiq-frontend
-    restart: always
+      args:
+        # Baked in at build time. The browser resolves this against the host,
+        # so it stays a localhost address for the whole development stack.
+        VITE_API_BASE_URL: http://localhost:8000
+    restart: unless-stopped
     ports:
-      - "3000:80"
+      - "8080:80"
     depends_on:
-      - backend
+      - api
 
 volumes:
-  postgres_data:
-  backend_uploads:
+  potencia-db:

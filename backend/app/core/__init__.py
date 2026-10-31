@@ -1,1 +1,1 @@
-# App Core Package
+"""Cross-cutting concerns: configuration, logging, errors, database."""

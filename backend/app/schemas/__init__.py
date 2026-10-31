@@ -1,1 +1,1 @@
-# Schemas Package
+"""Pydantic schemas defining the wire contract."""
