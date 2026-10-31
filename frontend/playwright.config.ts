@@ -13,6 +13,12 @@ import { defineConfig, devices } from '@playwright/test'
  * The system Chrome is used by default: downloading a second browser would add
  * ~150MB to a machine that already has one.
  */
+/**
+ * An empty CHROME_PATH means "use the browser Playwright installed", which is
+ * what CI does. `??` would keep the empty string, so it is normalised here.
+ */
+const systemChrome = process.env.CHROME_PATH?.trim() || undefined
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
@@ -32,7 +38,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         launchOptions: {
-          executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome',
+          ...(systemChrome ? { executablePath: systemChrome } : {}),
           args: ['--no-sandbox'],
         },
       },

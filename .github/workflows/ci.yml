@@ -150,7 +150,6 @@ jobs:
         env:
           API_BASE_URL: http://127.0.0.1:8010
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
-          CHROME_PATH: ''
         run: |
           nohup npx vite preview --port 4173 --strictPort > /tmp/web.log 2>&1 &
           for i in $(seq 1 30); do
