@@ -1,313 +1,320 @@
 <div align="center">
 
-<img src="assets/brand/potencia-logo.png" alt="POTENCIA — Power Your Potential" width="600" />
+<img src="assets/brand/potencia-logo.png" alt="POTENCIA" width="720" />
 
-<br /><br />
+### Beyond Your Resume. Unleash Your Potential.
 
-# POTENCIA
+**AI Resume Intelligence — explainable scoring, ATS compatibility, job matching, and edits you approve.**
 
-**AI Resume Intelligence**
-
-*Beyond Your Resume. Unleash Your Potential.*
-
-<br />
-
-<img alt="License" src="https://img.shields.io/badge/license-MIT-6366f1?style=flat-square" />
-<img alt="Tests" src="https://img.shields.io/badge/tests-78_passing-34d399?style=flat-square" />
-<img alt="Phase" src="https://img.shields.io/badge/phase-7_·_ATS_engine-8b5cf6?style=flat-square" />
-<img alt="Latency" src="https://img.shields.io/badge/analysis_p50-22.4ms-22d3ee?style=flat-square" />
-<img alt="Backend" src="https://img.shields.io/badge/backend-FastAPI_·_Python_3.12-0ea5e9?style=flat-square" />
-<img alt="Frontend" src="https://img.shields.io/badge/frontend-React_·_TypeScript_·_Vite-3b82f6?style=flat-square" />
-
-<br /><br />
-
-[Result](#-measured-not-claimed) · [How it works](#-the-intelligence-pipeline) · [Theory](#-the-scoring-theory) · [API](#-api-surface) · [Quickstart](#-quickstart) · [Status](#-status)
+[![Tests](https://img.shields.io/badge/tests-108%20passing-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![API](https://img.shields.io/badge/API-30%20operations-22D3EE?style=flat-square)](docs/API.md)
+[![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
+[![Licence](https://img.shields.io/badge/licence-MIT-9AA3C7?style=flat-square)](LICENSE)
 
 </div>
 
 ---
 
-## ⚡ What this is
+## The premise
 
-POTENCIA reads a resume, reconstructs its structure, and measures it against **27 explicit criteria** across six weighted categories. Every number is produced by deterministic rules — a language model never decides a score.
+Every resume tool tells you a number. Almost none can tell you where the number came from, and fewer still will refuse to make one up.
 
-Instead of "your resume is 7/10", you get a ledger: here is the score, here is the exact sentence that cost you points, here is what to change, and here is what it is worth.
+POTENCIA is built on a single constraint: **the score is arithmetic over evidence, not an opinion**. A rule set reads the document, extracts what is actually there, measures 27 criteria, and reports the sentence that caused each deduction. The same document always produces the same score — not because it is cached, but because nothing random is in the path.
 
-> **The product thesis.** Most resume tools ask a model to *rate* a document. That produces variance (the same resume scores differently tomorrow), opacity (nobody can tell which line mattered), and manipulation (flattering text scores well). POTENCIA inverts it: **numbers come from rules, prose comes from models.**
+| | What it answers | How |
+|:--|:--|:--|
+| **01** | How strong is this resume? | 27 weighted criteria across 6 categories |
+| **02** | Will software be able to read it? | Structural ATS compatibility estimate, with hazards named |
+| **03** | How well does it fit *this* job? | Requirement extraction, then three-state skill matching |
+| **04** | What exactly should change? | Prioritised findings, each with a quoted line and a fix |
 
 ---
 
-## 📊 Measured, not claimed
+## Proof, not adjectives
 
-Every figure below was produced by running the real engine, over real HTTP, against real PostgreSQL — while writing this README.
+One resume — 87 words, 2 roles, 4 bullets, 7 listed skills — run through the finished pipeline against PostgreSQL. Every figure below is produced by `scripts/readme_metrics.py` and stored in [`assets/readme/metrics.json`](assets/readme/metrics.json).
 
-### One real resume, end to end
+<table>
+<tr>
+<td width="50%" valign="top">
 
-| Stage | Result | Detail |
-|:--|:--|:--|
-| Upload → parse | **66 ms** | 1-page PDF, text layer, extraction confidence **1.00** |
-| Reconstructed structure | **2 roles · 4 bullets · 7 explicit skills · 107 words** | plus 1 skill *inferred* from prose, never promoted to a claim |
-| Full analysis | **45 ms** first run · **22.4 ms** p50 | parse → 27 criteria → ATS → 11 findings |
-| Overall score | **86.7 / 100** — *strong* | `applicable_weight: 100` — every category applied |
+**What the parser recovered**
 
-<img src="assets/readme/score-breakdown.png" alt="Score breakdown for one real resume: content 81.4, experience 92.6, skills 77.4, structure 100.0, ATS 88.2, language 79.4, overall 86.7" width="100%" />
+| Field | Value |
+|:--|--:|
+| Words / bullets | 87 / 4 |
+| Experience entries | 2 |
+| Explicit skills | 7 |
+| Inferred skills | 1 |
+| Extraction method | text layer |
+| Extraction confidence | 0.97 |
 
-| Category | Score | Weight | Confidence |
-|:--|--:|--:|:--|
-| Content quality | 81.4 | 25 | high |
-| Experience & achievements | 92.6 | 20 | high |
-| Skills presentation | 77.4 | 15 | high |
-| Structure & organization | 100.0 | 15 | high |
-| ATS compatibility | 88.2 | 15 | high |
-| Language & readability | 79.4 | 10 | high |
-| **Overall** | **86.7** | **100** | high |
+</td>
+<td width="50%" valign="top">
 
-### ATS compatibility — an estimate, labelled as one
-
-| Check | Status | Finding |
-|:--|:-:|:--|
-| AT-01 Extraction fidelity | ✅ pass | full text layer recovered |
-| AT-02 Reading order | ✅ pass | single column, order preserved |
-| AT-03 Structural hazards | ✅ pass | no tables, text boxes or image text |
-| AT-04 Date parseability | ⚠️ warn | mixed formats across roles |
-| AT-05 Contact parseability | ✅ pass | email and phone recover as plain text |
-
-**Estimate: 88.2** · `3 pass · 1 warn · 0 fail` · the response carries its own mandatory disclaimer, so no client can render the number without the caveat.
-
-### Every deduction is traceable
-
-<img src="assets/readme/findings.png" alt="11 findings: 6 medium, 3 low, 1 high, 1 info" width="46%" align="right" />
-
-Eleven findings, each carrying verbatim evidence, an explanation and a remediation:
-
-- **[high] CQ-03** — *"Achievements are described but not measured"* · −3.12 pts
-- **[medium] AT-04** — *"Date formats are mixed"* · −1.76 pts
-- **[medium] LR-02** — *"Verb tense does not match the role's status"* · −1.50 pts
-- **[medium] SK-04** — *"Some skills are claimed but never demonstrated"* · −1.45 pts
-- **[medium] EX-04** — *"Career progression is not legible"* · −1.20 pts
-
-The impacts sum to **13.3** — exactly `100 − 86.7`. That reconciliation is an assertion in the test suite, not a hope: a report whose findings don't add up to its score fails CI.
-
-<br clear="right" />
-
-### Performance, measured over 20 runs
-
-<img src="assets/readme/latency.png" alt="Analysis latency across 20 runs: p50 22.4 ms, p95 27.3 ms" width="100%" />
+**What the engines concluded**
 
 | Metric | Value |
 |:--|--:|
-| p50 | **22.4 ms** |
-| p95 | **27.3 ms** |
-| min / max | 15.4 ms / 27.8 ms |
+| Overall score | **82.6** / 100 |
+| Band | strong |
+| ATS compatibility | **88.2** / 100 |
+| Findings raised | 13 |
+| Priority actions | 5 |
+| Recommendations | 13 |
+| Job match | **49.0** / 100 |
 
-No queue, no cache, no provider call: the entire analysis is CPU-bound rules over an in-memory structure.
+</td>
+</tr>
+</table>
 
-### Test suite
-
-<img src="assets/readme/tests.png" alt="78 passing tests: parser 24, document 15, auth 14, scoring 13, API flow 6, health 6" width="100%" />
-
-| Area | Tests | What it prevents |
-|:--|--:|:--|
-| Parser | 24 | Inventing a value where the document was ambiguous |
-| Document | 15 | Accepting a file whose bytes contradict its extension |
-| Auth | 14 | Account enumeration, token confusion, data leakage |
-| Scoring | 13 | Non-determinism, double penalties, unreconciled reports |
-| API flow | 6 | Cross-user access; a broken end-to-end journey |
-| Health | 6 | A dependency outage surfacing as a dead process |
-
-**78 passing** · run with `pytest` — no PostgreSQL, no network, no fixtures to download.
+The report reconciles with itself: the 13 findings' impacts sum to **17.4 points**, which is exactly `100 − 82.6`. That identity is a test, not a claim — if the findings stop explaining the score, the suite fails.
 
 ---
 
-## 🧠 The intelligence pipeline
+## Scoring: the formula, and why it is legible
+
+```
+overall = Σ ( category_score × weight ) / Σ ( weight of applicable categories )
+```
+
+| Category | Weight | Score | Contribution |
+|:--|--:|--:|--:|
+| Content quality | 25 | 78.4 | 19.60 |
+| Experience & achievements | 20 | 86.9 | 17.38 |
+| Structure & organisation | 15 | 100.0 | 15.00 |
+| ATS compatibility | 15 | 88.2 | 13.23 |
+| Skills presentation | 15 | 66.2 | 9.93 |
+| Language & readability | 10 | 74.5 | 7.45 |
+| **Total** | **100** | | **82.59 → 82.6** |
+
+Two rules do the heavy lifting:
+
+1. **Missing is not zero.** A section that does not apply to a candidate leaves the denominator instead of scoring 0 — a fresher without work experience is not penalised for being a fresher, and the report states the applicable weight (here 100 of 100).
+2. **Every deduction cites text.** A criterion that fires must attach a verbatim excerpt. A finding without evidence is a bug, and the API refuses to serialise one.
+
+![Category scores](assets/readme/score-breakdown.png)
+
+The weights are **product-design hypotheses**, not empirically validated industry standards. Calibrating them requires a reviewed dataset and expert ranking; until that exists, the honest description is "a defensible starting point, versioned and stated in every report" — (`methodology_version` is stored per analysis, so an old report never silently changes meaning).
+
+---
+
+## Findings: severity is a work queue
+
+![Findings by severity](assets/readme/findings.png)
+
+13 findings: **2 high, 6 medium, 5 low**. Impact-ordered, not severity-ordered, so the first action is the one that buys the most points. Each carries the excerpt that triggered it, an explanation, and a remediation.
+
+---
+
+## Widget-free matching: three states, never two
+
+A skill in a job description can be in one of **three** positions relative to a resume. Most tools collapse them into two and end up telling people to add skills they already have.
 
 ```mermaid
 flowchart LR
-    A(["PDF / DOCX"]) --> B["Validation<br/>bytes, not extension"]
-    B --> C["Extraction<br/>page + paragraph order"]
-    C --> D["Normalisation"]
-    D --> E["Section detection"]
-    E --> F[["Structured Resume"]]
-    F --> G["27 criteria"]
-    F --> H["ATS analysis"]
-    G --> I["Weighted aggregation"]
-    H --> I
-    I --> J["Evidence ledger"]
-    J --> K(["Score + findings + actions"])
+    A[Skill in job description] --> B{In resume at all?}
+    B -- no --> C[<b>absent</b><br/>Not present anywhere]
+    B -- yes --> D{Claimed in the skills list?}
+    D -- yes --> E{Used in a role or project?}
+    E -- yes --> F[<b>matched</b><br/>Claimed and demonstrated]
+    E -- no --> G[<b>partial</b><br/>Claimed, never shown]
+    D -- no --> H[<b>weakly demonstrated</b><br/>Shown, never claimed]
 ```
 
-Three layers, independently testable, with a strict rule between them:
+On the sample job description:
 
-| Layer | Owns | Forbidden |
+| Requirement | Status | Meaning in the report |
 |:--|:--|:--|
-| **Deterministic** | extraction, sections, 27 criteria, arithmetic, ATS | guessing — ambiguity is recorded as ambiguity |
-| **NLP** | skill taxonomy, alias canonicalisation, inferred skills | promoting a mention in prose to a claimed skill |
-| **Generative** | explanation, rewrite proposals *(Phase 9)* | producing, adjusting or overriding any number |
+| Python | matched | Listed *and* used in a bullet |
+| PostgreSQL | partial | Listed, never demonstrated |
+| Kubernetes | partial | Listed, never demonstrated |
+| Terraform | absent | Nowhere in the document |
+| Kafka | absent | Nowhere in the document |
+| GraphQL *(preferred)* | absent | Nowhere in the document |
+
+The resulting match is **49.0**, which reads low — and it should. The candidate claims seven technologies and demonstrates one. That is the finding, not a bug: an unevidenced claim is worth less than a visible gap, so the gap advice says *"do not add it unless you have genuinely used it."*
 
 ---
 
-## 📐 The scoring theory
+## ATS compatibility: an estimate, stated as one
 
-Each category is a weighted mean of its criteria; the overall is a weighted mean of **applicable** categories.
+The ATS figure separates **document parseability** from **job keyword relevance** — two different questions that tools routinely merge into one misleading number.
 
-```
-category(c) = Σ(wᵢ · sᵢ) / Σ(wᵢ)          over applicable criteria only
-overall     = 100 · Σ(W꜀ · category(c)) / Σ(W꜀)   over applicable categories
-```
+Checks cover text-layer extraction, reading order, tables and columns, headers and footers, heading clarity, contact extractability, date consistency and non-standard glyphs. Every check reports `pass` / `warn` / `fail` with evidence and a correction. The estimate **88.2** here reflects a clean single-column text-layer PDF; the disclaimer travels with it in the API, the report, and the PDF:
 
-Two rules do the real work:
-
-**1. Not-applicable ≠ zero.** A first-time candidate with no internships and no experience heading has *nothing to judge* — so the 20-point experience weight leaves the denominator and `applicable_weight` becomes 80. They are not punished for work they haven't done, and they are not flattered either: every remaining category now carries more weight.
-
-**2. One defect, one owner.** Each underlying problem is owned by exactly one criterion. A bullet with no metric belongs to `CQ-03` — it cannot also be deducted under language or experience. The ownership map is asserted unique at import time, because a duplicate would silently double-charge the user.
-
-| Category | Weight | Rationale |
-|:--|--:|:--|
-| Content quality | 25 | What it says drives whether a human reads on |
-| Experience | 20 | Whether the history reads as consequential |
-| Skills | 15 | Whether capability is legible and substantiated |
-| Structure | 15 | Whether a reader can navigate it |
-| ATS compatibility | 15 | Whether it survives extraction at all |
-| Language | 10 | Whether it is clean enough to read |
-
-> These weights are **design hypotheses**, not validated industry standards. `SCORING_METHODOLOGY.md` defines the calibration that would justify them — annotated corpus, dual raters, κ ≥ 0.7 — and the product does not claim accuracy before that exists.
+> ATS compatibility estimate. Not a prediction of screening outcomes.
 
 ---
 
-## 🏗 Architecture
+## Recommendations that ask instead of invent
+
+The engine produces 13 recommendations from 13 findings: 3 concrete rewrites, 4 that ask the user for a fact, and the rest structural fixes with a stated next step.
+
+The rule is absolute — a rewrite may only restate what the user already wrote:
+
+| Situation | What POTENCIA does | What it will never do |
+|:--|:--|:--|
+| Bullet has no metric | Asks *"What scale did this work operate at — records, token requests, users, revenue, or time saved? Give the real figure."* | Insert a plausible number |
+| Weak opener ("Responsible for…") | Proposes "Owned …" | Invent scope |
+| Skill claimed, never used | Points at the gap and asks which role used it | Add a project |
+| Anything factual | Requires your click in the Improvement Studio | Auto-replace your resume |
+
+The original parse is **revision 0** and is never overwritten. An edit is a new node pointing at its parent, so history is a tree you can always walk back.
+
+---
+
+## Latency, measured on a local PostgreSQL container
+
+![Analysis latency](assets/readme/latency.png)
+
+| Stage | p50 | p95 / max |
+|:--|--:|--:|
+| Upload + parse | 26.6 ms | — |
+| Analysis (parse → score → ATS → findings) | 22.1 ms | 26.3 ms |
+| Recommendations | 38.7 ms | — |
+| Job match | 17.6 ms | — |
+| PDF export | 87.2 ms | 107.7 ms |
+
+20 runs each, single user, no caching layer. These are **not** load-test figures and the README will not pretend otherwise.
+
+---
+
+## Architecture
 
 ```mermaid
 flowchart TB
-    UI["React · TypeScript · Vite · Tailwind"]
-    subgraph API["FastAPI"]
-        R["/api/v1 routers"]
-        S["services"]
-        subgraph INT["intelligence"]
-            P["parser"]
-            SC["scoring · 27 criteria"]
-            AT["ats"]
-        end
-        D["document: validation · extraction"]
+    subgraph Client
+        UI[React 18 · TypeScript · Tailwind<br/>Router · TanStack Query]
     end
-    DB[("PostgreSQL")]
-    FS[("Object storage")]
+    subgraph API["API — FastAPI"]
+        R[Routes<br/>auth · resumes · analyses · jobs<br/>matches · recommendations · exports]
+        S[Services<br/>ownership · orchestration · export]
+    end
+    subgraph Intelligence["Intelligence — deterministic"]
+        D[Document<br/>validate · extract · OCR fallback]
+        P[Parser<br/>sections · entities · confidence]
+        SC[Scoring<br/>27 criteria · 6 categories]
+        AT[ATS<br/>structural hazards]
+        M[Matching<br/>requirements · 3-state skills]
+        RC[Recommendations<br/>rules · provider seam]
+    end
+    DB[(PostgreSQL)]
+    FS[(Content-addressed storage)]
 
-    UI -->|"HTTPS · JSON"| R
-    R --> S
-    S --> P
+    UI -->|JWT| R --> S
+    S --> D --> P
     S --> SC
     S --> AT
-    S --> D
+    S --> M
+    S --> RC
     S --> DB
     S --> FS
 ```
 
-| Layer | Stack |
-|:--|:--|
-| Frontend | React 18 · TypeScript · Vite · Tailwind · React Router · TanStack Query |
-| Backend | Python 3.12 · FastAPI · Pydantic v2 · SQLAlchemy 2 · Alembic |
-| Data | PostgreSQL 16 · content-addressed local object store |
-| Documents | PyMuPDF (PDF) · python-docx (DOCX) |
-| Auth | bcrypt (SHA-256 pre-hashed) · JWT access 15 min · rotating refresh 14 days |
+Every module has one responsibility, and the frontend never talks to a model or a storage path — it talks to the API.
 
 ---
 
-## 🔌 API surface
-
-| Method | Path | Purpose |
-|:--|:--|:--|
-| `GET` | `/health` | Liveness + dependency state (`200` / `503 degraded`) |
-| `POST` | `/api/v1/auth/register` · `login` · `refresh` · `logout` | Session lifecycle |
-| `GET` | `/api/v1/auth/me` · `DELETE /api/v1/users/me` | Identity · erasure |
-| `POST` `GET` | `/api/v1/resumes` | Upload (PDF/DOCX, ≤ 5 MiB) · list |
-| `GET` `DELETE` | `/api/v1/resumes/{id}` | Fetch parsed structure · erase |
-| `POST` `GET` | `/api/v1/analyses` | Score a resume · list |
-| `GET` | `/api/v1/analyses/{id}/report` | Full report: scores, ATS, findings, actions |
-
-Errors use one envelope everywhere, with a `request_id` that correlates to a structured log line — never to the document that caused it.
-
----
-
-## 🚀 Quickstart
+## Run it
 
 ```bash
-# Database (Compose supplies PostgreSQL 16 — nothing to install)
-docker compose up -d db
-
-# API → http://localhost:8000
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp ../.env.example .env          # set POTENCIA_DATABASE_URL + POTENCIA_SECRET_KEY
-alembic upgrade head
-uvicorn app.main:app --reload
-
-# Interface → http://localhost:5173
-cd frontend
-npm install && npm run dev
+git clone https://github.com/tdzoro/Potencia && cd Potencia
+cp .env.example .env            # set POTENCIA_SECRET_KEY
+docker compose up --build       # API on :8000, web on :8080
 ```
 
-`GET /health` reports the API and its database. Full stack in containers: `docker compose up --build` (API `:8000`, interface `:8080`).
+Local development, with the API on the host:
+
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+export POTENCIA_DATABASE_URL=postgresql+psycopg://potencia:potencia@localhost:5432/potencia
+export POTENCIA_SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+```bash
+cd frontend && npm install && npm run dev
+```
 
 ---
 
-## 📍 Status
+## API surface
 
-> **Phases 0–7 complete.** The deterministic core — upload, parsing, structure, scoring, ATS — is built, tested and running. Job matching, recommendations and the analysis interface are next; nothing below is claimed as working until it is.
+30 operations across 22 paths, all under `/api/v1` except health. Full contracts in [`docs/API.md`](docs/API.md).
 
-| Phase | Objective | State |
-|:-:|:--|:-:|
-| 0 | Repository audit | ✅ |
-| 1 | Specification: SRS, architecture, API, scoring methodology | ✅ |
-| 2 | Foundation: FastAPI, React, Compose, health, CI-ready | ✅ |
-| 3 | Database, authentication, per-user isolation | ✅ |
-| 4 | Document ingestion, PDF/DOCX parsing | ✅ |
-| 5 | Resume intelligence & skill taxonomy | ✅ |
-| 6 | Explainable scoring engine — 27 criteria | ✅ |
-| 7 | ATS compatibility engine | ✅ |
-| 8 | Job description matching | ○ next |
-| 9 | AI recommendation engine | ○ |
-| 10 | Resume improvement studio | ○ |
-| 11 | Analysis interface | ○ |
-| 12 | PDF / DOCX export | ○ |
-| 13–16 | Hardening · QA · performance · deployment | ○ |
-
-Live detail — files changed, tests run, known bugs, debt, blockers: [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
+| Group | Operations |
+|:--|:--|
+| Auth | register · login · refresh · logout · me · delete account |
+| Resumes | upload · list · get · revisions (list, create) · delete |
+| Analyses | create · list · get · report · recommendations · delete |
+| Jobs & matches | create · list · get · delete · match · read |
+| Recommendations | decide (accept · reject · edit) |
+| Exports | create · get · signed download · delete |
 
 ---
 
-## 📚 Documentation
+## Security posture
+
+| Control | State |
+|:--|:--|
+| Password hashing | bcrypt, per-password salt |
+| Tokens | 15-min access JWT, 14-day refresh, revoked by `token_version` |
+| Account enumeration | Identical `401` for unknown email and wrong password |
+| Data isolation | Row-level `user_id`; another user's resource returns `404` |
+| Uploads | Extension + magic bytes + streaming size cap |
+| Downloads | HMAC-signed, user-bound, 15-minute capability URL |
+| Rate limits | Login 5/15 min · uploads 10/h · analyses 20/h · exports 30/h |
+| Response headers | `nosniff` · `DENY` framing · `no-referrer` · strict CSP · `no-store` |
+
+Full detail, including what is deliberately not implemented yet, is in [`docs/SECURITY.md`](docs/SECURITY.md).
+
+---
+
+## Testing
+
+```bash
+cd backend && pytest -q        # 108 tests, no database or network required
+cd frontend && npm run build   # strict typecheck + production build
+```
+
+Tests that exist specifically to stop the product lying: score reconciliation, evidence on every finding, *no digits in an invented rewrite*, `partial` never collapsing into `absent`, and revision 0 being byte-identical after an edit. Details in [`docs/TESTING.md`](docs/TESTING.md).
+
+---
+
+## Limitations
+
+Stated here rather than discovered later:
+
+- **The weights are not validated.** They are defensible, versioned and disclosed; calibrated they are not.
+- **The ATS score simulates no specific vendor.** It measures structural parseability, which is the honest shared denominator.
+- **No LLM in the request path.** Recommendations are rules. The provider seam exists and validates any rewrite before use; adding a model is a deliberate future step, not a hidden dependency.
+- **Rate limits are per process.** Multi-worker deployments need a shared store.
+- **No malware scanning** on uploads, and no purchase of email verification.
+- **Latency figures are single-user.** There is no load test behind them.
+
+---
+
+## Documentation
 
 | Document | Contents |
 |:--|:--|
-| [`docs/SRS.md`](docs/SRS.md) | Personas, journeys, 96 functional requirements |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Boundaries, lifecycles, failure matrix, 8 ADRs |
-| [`docs/API.md`](docs/API.md) | Versioned contracts, error envelope, schemas |
-| [`docs/SCORING_METHODOLOGY.md`](docs/SCORING_METHODOLOGY.md) | 27 criteria, formulas, worked example |
-| [`docs/REPOSITORY_AUDIT.md`](docs/REPOSITORY_AUDIT.md) | Audit, debt, implementation sequence |
-
----
-
-## 🔒 Privacy
-
-A resume is one of the most personal documents a person owns.
-
-- Uploads are **never** public, never indexed, never readable across accounts.
-- Documents live in object storage, keyed by content hash — the database holds metadata, never bytes.
-- Resume text is **never** written to logs.
-- Deleting a resume deletes its analyses, revisions and files in one transaction.
-- Ambiguity is preserved, not resolved by guessing: a field that cannot be determined stays `null` and is listed as uncertain.
+| [SRS](docs/SRS.md) | Requirements, journeys, acceptance criteria |
+| [Architecture](docs/ARCHITECTURE.md) | Modules, boundaries, sequences, data model |
+| [API](docs/API.md) | Every endpoint, payload and error code |
+| [Scoring methodology](docs/SCORING_METHODOLOGY.md) | All 27 criteria, weights, applicability, confidence |
+| [Security](docs/SECURITY.md) | Controls, threat surface, gaps |
+| [Testing](docs/TESTING.md) | Coverage and the assertions that matter |
+| [Status](docs/PROJECT_STATUS.md) | Phase-by-phase state and known issues |
 
 ---
 
 <div align="center">
 
-<img src="assets/brand/potencia-logo.png" alt="POTENCIA" width="170" />
-
-**POTENCIA** — *Beyond Your Resume. Unleash Your Potential.*
-
-`Upload → Understand → Evaluate → Improve → Export`
-
-Released under the [MIT License](LICENSE).
+**POTENCIA** · AI Resume Intelligence
+Built by [Arghya Bose](https://github.com/tdzoro) · MIT licensed
 
 </div>

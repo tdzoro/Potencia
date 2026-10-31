@@ -1,0 +1,49 @@
+{
+  "generated_at": "2026-10-31T20:50:55Z",
+  "sample": {
+    "word_count": 87,
+    "roles": 2,
+    "bullets": 4,
+    "explicit_skills": 7,
+    "overall": 82.6,
+    "band": "strong",
+    "ats": 88.2,
+    "findings": 13,
+    "priority_actions": 5,
+    "recommendations": 13,
+    "match_estimate": 49.0,
+    "gaps": [
+      "PostgreSQL",
+      "Kubernetes",
+      "Terraform",
+      "Apache Kafka",
+      "GraphQL"
+    ],
+    "components": {
+      "content_quality": 78.4,
+      "experience": 86.9,
+      "skills": 66.2,
+      "structure": 100.0,
+      "ats_compatibility": 88.2,
+      "language_readability": 74.5
+    },
+    "severity": {
+      "critical": 0,
+      "high": 2,
+      "medium": 6,
+      "low": 5,
+      "info": 0
+    }
+  },
+  "latency_ms": {
+    "upload": 26.6,
+    "analysis_first": 25.7,
+    "analysis_p50": 22.1,
+    "analysis_p95": 26.3,
+    "recommendations": 38.7,
+    "match": 17.6,
+    "export_p50": 87.2,
+    "export_max": 107.7
+  },
+  "runs": 20
+}

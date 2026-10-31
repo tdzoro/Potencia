@@ -17,9 +17,10 @@ from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models.analysis import Analysis
 from app.models.user import User
+from app.schemas.recommendations import RecommendationOut
 from app.schemas.resumes import AnalysisDetailOut, AnalysisListOut, AnalysisOut
 from app.schemas.scores import ATSReport, Finding, ScoreBundle, Strength
-from app.services import analysis_service
+from app.services import analysis_service, recommendation_service
 
 router = APIRouter(prefix="/analyses", tags=["analyses"])
 
@@ -91,6 +92,14 @@ def read_report(
     analysis_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> AnalysisDetailOut:
     return _to_detail(analysis_service.get_analysis(db, user, analysis_id))
+
+
+@router.get("/{analysis_id}/recommendations", response_model=list[RecommendationOut])
+def list_recommendations(
+    analysis_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[RecommendationOut]:
+    rows = recommendation_service.list_for_analysis(db, user, analysis_id)
+    return [recommendation_service.to_out(row) for row in rows]
 
 
 @router.delete("/{analysis_id}", status_code=204)

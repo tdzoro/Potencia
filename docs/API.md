@@ -289,6 +289,7 @@ The atom of every report. Nothing actionable exists outside a finding.
   "original_text": "Worked on the backend API.",
   "proposed_text": "Owned the backend API for the billing service.",
   "reason": "Converts an activity statement into ownership.",
+  "remediation": "Name what you owned and the scope it covered.",
   "requires_user_input": [
     { "field": "scale", "question": "What scale did the billing service operate at — requests/day or records?" }
   ],
@@ -299,6 +300,8 @@ The atom of every report. Nothing actionable exists outside a finding.
 
 `category` ∈ `summary` | `experience_bullet` | `project_description` | `achievement` | `skills_organisation` | `grammar` | `clarity` | `relevance` | `keyword_placement` | `formatting`.
 `state` ∈ `pending` | `accepted` | `rejected` | `edited`.
+
+`remediation` is the concrete next step, carried through from the finding. A card that diagnoses a problem and offers no action is a dead end, so it is never empty: either there is a proposal, a question, or a directive.
 
 **`proposed_text` must be factually implied by `original_text`.** If improving a bullet requires a metric that is not in the resume, `proposed_text` stays conservative and `requires_user_input` carries the question. A fabricated "improved" bullet is worse than a weak original, because the user may believe it.
 

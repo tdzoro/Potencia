@@ -11,8 +11,9 @@ from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.errors import PotenciaError
-from app.models.content import Resume
+from app.models.content import Resume, ResumeRevision
 from app.models.user import User
+from app.schemas.recommendations import CreateRevisionRequest, RevisionOut
 from app.schemas.resume import ResumeStructure
 from app.schemas.resumes import (
     ExtractionOut,
@@ -20,7 +21,7 @@ from app.schemas.resumes import (
     ResumeOut,
     ResumeSummaryOut,
 )
-from app.services import resume_service
+from app.services import resume_service, revision_service
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
@@ -127,6 +128,43 @@ def read_resume(
     resume_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> ResumeOut:
     return _to_out(resume_service.get_resume(db, user, resume_id))
+
+
+def _revision_out(revision: ResumeRevision) -> RevisionOut:
+    return RevisionOut(
+        id=str(revision.id),
+        resume_id=str(revision.resume_id),
+        parent_id=str(revision.parent_id) if revision.parent_id else None,
+        applied_recommendations=list(revision.applied_recommendations or []),
+        content=ResumeStructure.model_validate(revision.content) if revision.content else None,
+        created_at=revision.created_at,
+    )
+
+
+@router.get("/{resume_id}/revisions", response_model=list[RevisionOut])
+def list_revisions(
+    resume_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[RevisionOut]:
+    return [_revision_out(row) for row in revision_service.list_revisions(db, user, resume_id)]
+
+
+@router.post("/{resume_id}/revisions", status_code=201, response_model=RevisionOut)
+def create_revision(
+    resume_id: uuid.UUID,
+    payload: CreateRevisionRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> RevisionOut:
+    parent_id = uuid.UUID(payload.parent_id) if payload.parent_id else None
+    revision = revision_service.create_revision(
+        db,
+        user,
+        resume_id,
+        content=payload.content,
+        parent_id=parent_id,
+        applied_recommendation_ids=payload.applied_recommendation_ids,
+    )
+    return _revision_out(revision)
 
 
 @router.delete("/{resume_id}", status_code=204)

@@ -87,6 +87,9 @@ class Recommendation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     original_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     proposed_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
+    # The concrete next step. Without it a card can say what is wrong and still
+    # leave the user with nothing to do.
+    remediation: Mapped[str] = mapped_column(Text, nullable=False, default="")
     # Questions the model must ask instead of inventing a metric (§2.9).
     requires_user_input: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     confidence: Mapped[str] = mapped_column(String(10), nullable=False, default="medium")

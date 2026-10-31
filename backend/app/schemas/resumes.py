@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import Any, Literal
 
@@ -81,3 +82,22 @@ class ResumeListOut(BaseModel):
 
 
 AnalysisStatus = Literal["queued", "running", "completed", "failed"]
+
+
+
+class CreateExportRequest(BaseModel):
+    analysis_id: uuid.UUID
+    kind: Literal["analysis_report", "improved_resume"]
+    format: Literal["pdf", "docx"]
+
+
+class ExportOut(BaseModel):
+    id: str
+    analysis_id: str
+    kind: str
+    format: str
+    status: str
+    size_bytes: int | None = None
+    download_url: str | None = None
+    expires_at: datetime | None = None
+    failure: dict[str, Any] | None = None

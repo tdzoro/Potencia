@@ -31,13 +31,17 @@ class LocalObjectStore:
             raise ValueError("refusing to access a path outside the store")
         return candidate
 
-    def put(self, data: bytes, media_type: str) -> tuple[str, str]:
-        """Store bytes and return `(key, sha256)`."""
+    def put(self, data: bytes, media_type: str, *, prefix: str = "") -> tuple[str, str]:
+        """Store bytes and return `(key, sha256)`.
+
+        `prefix` keeps collections apart — deleting an export must never unlink
+        an uploaded document that happens to hash to the same bytes.
+        """
         suffix = _EXTENSION_BY_MEDIA_TYPE.get(media_type)
         if suffix is None:
             raise ValueError(f"unsupported media type for storage: {media_type}")
         digest = hashlib.sha256(data).hexdigest()
-        key = f"{digest[:2]}/{digest}{suffix}"
+        key = f"{prefix}{digest[:2]}/{digest}{suffix}"
         path = self._safe_path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)

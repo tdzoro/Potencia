@@ -9,6 +9,7 @@ what happened rather than wondering why nothing appeared.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,7 +19,7 @@ from app.core.storage import get_store
 from app.document.extraction import extract
 from app.document.validation import validate_upload
 from app.intelligence.parser import parse_document
-from app.models.content import Resume
+from app.models.content import Resume, ResumeRevision
 from app.models.user import User
 
 
@@ -51,6 +52,7 @@ def create_resume(
         status="completed" if extraction.text.strip() else "failed",
     )
 
+    structure = None
     if extraction.text.strip():
         structure = parse_document(extraction)
         resume.structure = structure.model_dump(mode="json")
@@ -76,6 +78,22 @@ def create_resume(
         }
 
     db.add(resume)
+    # Flush to obtain the generated id before the revision references it.
+    db.flush()
+
+    if structure is not None:
+        # Revision 0 is the untouched parse; later edits are new nodes.
+        db.add(
+            ResumeRevision(
+                resume_id=resume.id,
+                user_id=user.id,
+                parent_id=None,
+                content=structure.model_dump(mode="json"),
+                applied_recommendations=[],
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+
     db.commit()
     db.refresh(resume)
     return resume

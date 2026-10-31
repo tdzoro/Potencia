@@ -26,6 +26,14 @@ _ANY_HEADING = re.compile(
     r"^\s*(?:responsibilities|what you(?:'| wi)ll do|about (?:the )?role|about us|benefits|perks)\b",
     re.IGNORECASE,
 )
+# Sentences that state a requirement outright. "We need X" is a requirement in
+# ordinary job-advert English, and treating it as a preference would silently
+# under-report the gap the candidate most needs to see.
+_IMPERATIVE = re.compile(
+    r"\b(?:must|required?|requires?|need(?:s|ed)?|proficien\w*|strong|expert\w*|"
+    r"looking for|you(?:'ll| will)? (?:have|bring)|experience (?:with|in))\b",
+    re.IGNORECASE,
+)
 _YEARS = re.compile(r"(\d{1,2})\s*\+\s*(?:years?|yrs?)|(\d{1,2})\s*(?:years?|yrs?)[^.\n]{0,20}experience", re.IGNORECASE)
 _DEGREE = re.compile(
     r"\b(bachelor(?:'s)?|b\.?\s?tech|b\.?\s?e\.?|b\.?sc|master(?:'s)?|m\.?\s?tech|m\.?\s?sc|mba|ph\.?\s?d)\b",
@@ -61,16 +69,21 @@ def _bucket_lines(description: str) -> dict[str, list[str]]:
         line = raw.strip()
         if not line:
             continue
-        if _REQUIRED_HEADING.match(line):
-            current = "required"
-            continue
-        if _PREFERRED_HEADING.match(line):
-            current = "preferred"
-            continue
-        if _ANY_HEADING.match(line):
-            current = "other"
-            continue
-        buckets[current].append(_clean(line))
+        for heading, bucket in (
+            (_REQUIRED_HEADING, "required"),
+            (_PREFERRED_HEADING, "preferred"),
+            (_ANY_HEADING, "other"),
+        ):
+            if heading.match(line):
+                current = bucket
+                # "Nice to have: Kafka, gRPC" carries its content on the heading
+                # line; dropping it would lose the skills entirely.
+                _, _, remainder = line.partition(":")
+                if remainder.strip():
+                    buckets[bucket].append(_clean(remainder))
+                break
+        else:
+            buckets[current].append(_clean(line))
     return buckets
 
 
@@ -104,7 +117,7 @@ def extract_requirements(description: str) -> JobRequirements:
             found = find_skills(line)
             if not found:
                 continue
-            if re.search(r"\b(must|required|proficien\w*|strong|expert\w*|experience (?:with|in))\b", line, re.I):
+            if _IMPERATIVE.search(line):
                 required.extend(found)
             else:
                 preferred.extend(found)

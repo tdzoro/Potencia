@@ -93,6 +93,31 @@ def test_requirements_are_split_by_section() -> None:
     assert requirements.responsibilities
 
 
+def test_an_ordinary_need_sentence_yields_required_skills() -> None:
+    """"We need X" states a requirement.
+
+    Bucketing it as a preference silently hides the most important gap from the
+    candidate, which is the failure this test exists to prevent.
+    """
+    requirements = extract_requirements(
+        "Senior Backend Engineer\n"
+        "We need 5+ years of Python experience, PostgreSQL, Kubernetes and Terraform.\n"
+        "You will own the ledger service.\n"
+    )
+    assert "Python" in requirements.required_skills
+    assert "PostgreSQL" in requirements.required_skills
+    assert requirements.preferred_skills == []
+    assert requirements.min_years == 5
+
+
+def test_a_wish_list_sentence_stays_a_preference() -> None:
+    requirements = extract_requirements(
+        "Nice to have: Rust, Kubernetes and GraphQL. We build data platforms.\n"
+    )
+    assert requirements.required_skills == []
+    assert "Kubernetes" in requirements.preferred_skills
+
+
 def test_a_claimed_and_demonstrated_skill_matches() -> None:
     structure = _structure(explicit=["Python"], prose="Built services in Python")
     result = match_resume(structure, extract_requirements(JOB))

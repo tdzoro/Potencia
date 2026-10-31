@@ -16,6 +16,7 @@ from app.api.routes import health
 from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, set_request_id
+from app.core.ratelimit import RateLimitMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 
 _ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 _ALLOWED_HEADERS = ["Authorization", "Content-Type", "X-Request-ID", "X-Idempotency-Key"]
-_EXPOSED_HEADERS = ["X-Request-ID"]
+_EXPOSED_HEADERS = ["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining", "Retry-After"]
 
 
 def _resolve_request_id(request: Request) -> str:
@@ -70,6 +71,30 @@ async def request_context(
     return response
 
 
+async def security_headers(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    """Headers that make a browser refuse to reinterpret the response.
+
+    The API only ever returns JSON or a document download, so the policy can be
+    strict: nothing is loaded from it, and nothing is cached, because every
+    authenticated response is private to one account.
+    """
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    # Nothing this API returns is shareable: JSON is per-account, and a download
+    # is a one-off file.
+    response.headers["Cache-Control"] = "no-store"
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the ASGI application. Accepting settings keeps tests hermetic."""
     settings = settings or get_settings()
@@ -99,7 +124,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         expose_headers=_EXPOSED_HEADERS,
         max_age=600,
     )
+    app.add_middleware(RateLimitMiddleware)
     app.middleware("http")(request_context)
+    app.middleware("http")(security_headers)
 
     register_exception_handlers(app)
 
