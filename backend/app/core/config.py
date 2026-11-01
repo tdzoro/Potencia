@@ -64,6 +64,18 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("GEMINI_TIMEOUT_SECONDS", "POTENCIA_GEMINI_TIMEOUT_SECONDS"),
     )
 
+    # ClamAV Malware Scanning Configuration
+    clamav_enabled: bool = False
+    clamav_host: str = "clamav"
+    clamav_port: int = 3310
+    clamav_timeout_seconds: int = 15
+    # When True (or in production), scanner failure fails closed rather than bypassing
+    clamav_required: bool = False
+
+    # Document Hardening Limits
+    max_pdf_pages: int = 50
+    max_docx_entries: int = 1000
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Allowed browser origins, comma-separated in one env var."""
@@ -76,6 +88,11 @@ class Settings(BaseSettings):
     @property
     def uses_insecure_secret(self) -> bool:
         return self.secret_key == INSECURE_DEV_SECRET
+
+    @property
+    def requires_malware_scan(self) -> bool:
+        """In production or when explicitly configured, scanning must never be silently bypassed."""
+        return self.clamav_required or self.is_production
 
 
 @lru_cache

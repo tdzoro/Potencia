@@ -6,7 +6,7 @@
 
 **AI Resume Intelligence — explainable scoring, ATS compatibility, job matching, and edits you approve.**
 
-[![Tests](https://img.shields.io/badge/tests-150%20backend%20·%2011%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![Tests](https://img.shields.io/badge/tests-195%20backend%20·%2011%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
 [![API](https://img.shields.io/badge/API-32%20operations-22D3EE?style=flat-square)](docs/API.md)
 [![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
 [![Licence](https://img.shields.io/badge/licence-proprietary-9AA3C7?style=flat-square)](LICENSE)
@@ -280,12 +280,24 @@ flowchart TB
 
 ---
 
+## Secure Document Processing & Malware Protection
+
+POTENCIA treats uploaded documents as untrusted binary data:
+
+- **ClamAV Anti-Malware Integration:** Uploads are streamed via the native ClamAV `INSTREAM` protocol over TCP (`app/services/malware_scanner.py`) prior to storage.
+- **Fail-Closed in Production:** In production mode (`POTENCIA_ENVIRONMENT=production` or `POTENCIA_CLAMAV_REQUIRED=true`), any scanner connection failure or timeout halts the upload with `503 Service Unavailable`, preventing unscanned files from reaching storage.
+- **File Validation & Sanitization:** Strict extension (`.pdf`, `.docx`) and magic-byte checks (`%PDF-`, `PK\x03\x04`). Filename sanitization strips path traversal (`../`, `..\`), null bytes, control characters, and reserved Windows device names (`CON`, `PRN`, `NUL`).
+- **Container Hardening:** Rejects encrypted PDFs, PDFs exceeding 50 pages, PDFs with executable attachments, ZIP bombs / compression ratios > 100:1, DOCX archives exceeding 1,000 entries, path traversal in ZIP member names, and macro-enabled files (`vbaProject.bin`).
+- **Storage Isolation & Automatic Cleanup:** Content-addressed storage (`sha256`) with restrictive permissions (`0o600`), tenant ownership checks (`404` on unauthorized access), zero storage path disclosure in API responses, and immediate deletion of stored files on extraction failure.
+
+---
+
 ## Run it
 
 ```bash
 git clone https://github.com/tdzoro/Potencia && cd Potencia
 cp .env.example .env            # set POTENCIA_SECRET_KEY
-docker compose up --build       # API on :8000, web on :8080
+docker compose up --build       # API on :8000, web on :8080, ClamAV on :3310, db on :5432, redis on :6379
 ```
 
 Local development:

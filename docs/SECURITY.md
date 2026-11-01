@@ -21,13 +21,29 @@ Every owned table carries `user_id` at row level, including tables reachable onl
 
 A request for another account's resource returns `404`, never `403`: whether a resource exists is itself private.
 
-## Document handling
+## Document handling & Secure Ingestion Pipeline
 
-- Extension **and** magic bytes are checked; a `.pdf` containing PNG bytes is rejected with `415`.
-- Upload size is enforced while streaming, not after buffering, so a large body is never held in memory.
-- Files are stored content-addressed (`sha256`) under `POTENCIA_STORAGE_ROOT`, outside the database and outside any public path.
-- Exports are stored under a separate `exports/` prefix so deleting an export can never unlink an uploaded document that hashes to the same bytes.
-- Deletion is a cascade: removing a resume removes its analyses, matches, recommendations, revisions and exports.
+Uploaded resumes undergo a strict 12-step validation and ingestion pipeline before reaching the parsing and scoring engines:
+
+1. **Receive upload:** Streaming chunk read (`_read_limited`) rejects uploads exceeding 5 MiB without buffering large payloads in memory (`413 Payload Too Large`).
+2. **Authenticate user:** Request is strictly bound to the authenticated user account.
+3. **Validate request & idempotency:** Deduplicates requests using `X-Idempotency-Key`.
+4. **Sanitize filename:** Strips POSIX and Windows path traversal sequences (`../`, `..\`), control characters, null bytes, and Windows reserved device names (`CON`, `NUL`, `PRN`), truncating to a maximum of 255 characters with safe fallbacks.
+5. **Validate extension & file signature:** Checks file extension against allow-list (`.pdf`, `.docx`) and verifies magic bytes (`%PDF-` in the first 1 KiB, or `PK\x03\x04` for DOCX). Mismatched or fake extensions are rejected (`415 Unsupported Media Type`).
+6. **Container structure validation:**
+   - **PDF:** Rejects encrypted or password-protected PDFs (`needs_pass`), zero-page documents, PDFs exceeding 50 pages (`POTENCIA_MAX_PDF_PAGES`), and PDFs containing embedded executable or script attachments (`.exe`, `.bat`, `.vbs`, etc.).
+   - **DOCX:** Strict in-memory ZIP inspection. Rejects archives missing `word/document.xml`, archives with macro files (`vbaProject.bin`), archives exceeding 1,000 entries (`POTENCIA_MAX_DOCX_ENTRIES`), path traversal sequences in entry names (`..`, leading `/` or `\`, drive letters), uncompressed expansions over 100 MiB, and ZIP bombs with compression ratios over 100:1.
+7. **Malware scanning (ClamAV):**
+   - Transmits document bytes to ClamAV daemon via the native `INSTREAM` protocol over TCP (no third-party dependencies).
+   - Enforces configurable socket timeout (`POTENCIA_CLAMAV_TIMEOUT_SECONDS`, default 10s).
+   - Fast-path detection of the standard EICAR test signature.
+   - **Fail-Closed in Production:** If `POTENCIA_ENVIRONMENT=production` or `POTENCIA_CLAMAV_REQUIRED=true`, any ClamAV connection outage or timeout immediately fails closed with HTTP `503 Service Unavailable`, preventing unscanned files from reaching storage.
+   - In local development mode with scanner unconfigured, logs a warning and falls back safely to test scanning.
+8. **Malware rejection:** Files identified as malicious are rejected with HTTP `422 Unprocessable Entity` containing the threat classification, without persisting the bytes to disk.
+9. **Secure storage:** Approved files are saved using content-addressed SHA-256 digests (`storage_key = {prefix}{digest[:2]}/{digest}.ext`) under `POTENCIA_STORAGE_ROOT`, outside web root and database. Storage files are created with restrictive permissions (`0o600` for files, `0o700` for directories). Internal storage paths and keys are never exposed in API responses.
+10. **Extract document text:** Text layers extracted using PyMuPDF (PDF) or python-docx (DOCX).
+11. **Validate extracted content:** Unparseable or empty documents are flagged with appropriate error metadata.
+12. **Automatic failure cleanup:** If text extraction or database persistence fails after storing, the uploaded file is immediately unlinked from object storage to prevent orphaned files.
 
 ## Downloads
 
@@ -81,7 +97,7 @@ When `GEMINI_API_KEY` is configured, POTENCIA connects to Google Gemini (`gemini
 | Area | Status | Why |
 |:--|:--|:--|
 | LLM scoring | Prohibited | Scores and findings are 100% deterministic rules. An LLM is used only as an optional text rewrite assistant (`app/ai/providers/gemini.py`). |
-| Malware scanning | Not integrated | Uploads are type-checked and size-capped but not scanned. A production deployment should add ClamAV or an equivalent in front of the parser. |
+| Malware scanning | Integrated (Phase 21) | ClamAV `INSTREAM` protocol integration with fail-closed production guarantees and automated container service in docker-compose. |
 | Email verification | Field exists, flow does not | `users.email_verified` is stored and returned; no mail is sent. |
 | Audit log | Structured request logging only | Method, path, status and duration are logged with a request id. Resume contents, emails and tokens are never logged. |
 

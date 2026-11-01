@@ -1,7 +1,7 @@
 # Project status
 
 **Last updated:** 1 November 2026
-**Current phase:** 20 complete — Google Gemini AI writing assistant integration with prompt-injection and non-fabrication controls
+**Current phase:** 21 complete — Security Hardening & Secure Document Processing (ClamAV Malware Scanning, Container Protection, and Tenant Isolation)
 **Methodology version:** 1.0.0
 
 ---
@@ -126,6 +126,20 @@ Six guardrail tests make the regression catchable rather than remembering it: he
 
 **PASS.**
 
+### Phase 21 — Security Hardening & Secure Document Processing
+**PASS.**
+- **Malware scanning integration:** Implemented native pure-Python ClamAV `INSTREAM` streaming protocol client over TCP (`backend/app/services/malware_scanner.py`) with configurable socket timeouts and zero third-party dependencies.
+- **Fail-safe production controls:** Outages and timeouts fail closed (`503 Service Unavailable`) when running in production (`POTENCIA_ENVIRONMENT=production` or `POTENCIA_CLAMAV_REQUIRED=true`), preventing unscanned files from entering storage. In development/testing, falls back gracefully to test scanning.
+- **EICAR signature detection:** Built-in detection of the standard EICAR test signature rejecting malicious files with `422 Unprocessable Entity` containing the threat classification.
+- **Filename sanitization:** `sanitize_filename` strips Unix/Windows directory traversal (`../`, `..\`), null bytes, control characters, and reserved Windows device names (`CON`, `PRN`, `NUL`), enforcing a 255-character maximum with safe fallback.
+- **PDF security:** Rejection of encrypted/password-protected PDFs (`needs_pass`), page count limits (`POTENCIA_MAX_PDF_PAGES=50`), corrupted PDF handling, and embedded executable/script attachment inspection.
+- **DOCX container security:** Rejection of ZIP bombs and unsafe compression ratios (> 100:1), archive entry count limits (`POTENCIA_MAX_DOCX_ENTRIES=1000`), path traversal in archive member names (`..`, leading slashes, drive letters), and macro-enabled files (`vbaProject.bin`).
+- **Secure object storage:** Restrictive permissions (`0o600` on files, `0o700` on directories), content-addressed SHA-256 keys, storage root boundary enforcement, zero internal storage paths exposed in API responses, strict tenant isolation (`404` for unauthorized users), and immediate cleanup of stored files on processing failure.
+- **Docker & Compose configuration:** Added `clamav` container (`clamav/clamav:latest`, port 3310, health check) to `docker-compose.yml`, updated `.env.example` with `POTENCIA_CLAMAV_*` and `POTENCIA_MAX_*` settings.
+- **Comprehensive security test suite:** 30 automated security tests in `backend/tests/test_secure_document_processing.py`. Total backend test suite now 195 tests, all passing hermetically.
+
+**PASS.**
+
 ---
 
 ## Verified end to end
@@ -142,7 +156,7 @@ Browser journey verified in Chrome: score rendered from the DOM, acceptance pers
 |:--|:--|:--|:--|
 | KI-1 | Weights not empirically validated | Medium | Harness shows the shipped vector is not beaten by alternatives on rubric fixtures; that is a floor, not a study |
 | KI-2 | No LLM provider | Resolved | Optional Google Gemini provider implemented behind the provider seam in Phase 20 |
-| KI-4 | No malware scanning on uploads | Medium | Type and size checked only |
+| KI-4 | No malware scanning on uploads | Resolved | Integrated ClamAV daemon malware scanning (INSTREAM protocol) with fail-closed production mode and EICAR detection in Phase 21 |
 | KI-5 | No email verification flow | Low | Field stored, no mail sent |
 | KI-6 | OCR engine not installed | Low | Scanned documents are detected and labelled `ocr_not_performed`, never silently scored |
 **Resolved in Phase 17:** per-process-only rate limits, missing export history, absent browser automation, unverified click-through of the match view, manual-only retention (now scheduled in compose), multi-version resumes (now labelled with comparison), a `500` on a malformed `parent_id`, and export rows mislabelled with an expiry as a generation time.

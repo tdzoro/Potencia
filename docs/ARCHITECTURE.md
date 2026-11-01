@@ -30,8 +30,10 @@ flowchart LR
     API --> SVC["Application services"]
     SVC --> INT["Intelligence engine"]
     SVC --> DOC["Document processing"]
+    SVC --> SCAN["Malware scanner (ClamAV)"]
     SVC --> AIL["AI provider abstraction"]
     AIL -->|"outbound HTTPS"| LLM["External LLM provider"]
+    SCAN -->|"TCP INSTREAM"| CLAMD["ClamAV Daemon"]
     SVC --> DB[("PostgreSQL")]
     SVC --> OBJ[("Document storage")]
     W["Task runner"] --> SVC
@@ -101,7 +103,18 @@ A router that needs two service calls in sequence is a signal the workflow belon
 
 i/ encapsulates optional external AI rewrite providers (such as Google Gemini via GeminiRewriteProvider). Untrusted resume text is isolated inside <untrusted_resume_content> delimiters with strict anti-hallucination rules. Output is validated against Pydantic schemas and cached in an in-memory LRU cache. When unconfigured, NullRewriteProvider ensures transparent deterministic fallback without breaking any workflow.
 
-### 3.6 `core/` — cross-cutting
+### 3.7 `services/malware_scanner.py` & Document Security
+
+| | |
+|:--|:--|
+| **Responsibility** | Pre-storage malware scanning, container safety inspection, format validation |
+| **Owns** | Native ClamAV `INSTREAM` protocol client, EICAR detection, container validation rules |
+| **Never does** | Parse resume contents, touch database rows, expose internal filesystem keys |
+| **May import** | `core` |
+
+Upload processing executes an atomic 12-step sequence: streaming upload limits (5 MiB), filename sanitization, signature and magic byte checking (`%PDF-`, `PK`), PDF structure inspection (page count <= 50, encryption rejection, attachment safety), DOCX archive inspection (entries <= 1000, no path traversal in entries, compression ratio <= 100:1, macro rejection), ClamAV malware scan (fail-closed in production), content-addressed storage (`0o600` permissions), text extraction, and cleanup upon post-storage failures.
+
+### 3.8 `core/` — cross-cutting
 
 | | |
 |:--|:--|
