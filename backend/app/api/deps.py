@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import uuid
 
+# pyrefly: ignore[missing-import]
 import jwt
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
