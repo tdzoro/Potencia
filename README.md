@@ -410,7 +410,7 @@ Stated here rather than discovered later:
 
 <div align="center">
 
-**POTENCIA** · AI Resume Intelligence
+**POTENCIA** · AI RESUME INTELLIGENCE 
 Built by [Arghya Bose](https://github.com/tdzoro) [Trayam Roy](https://github.com/tdzoro) [Mallick Ibrahim](https://github.com/tdzoro)· © 2026 POTENCIA Team · All rights reserved
 
 </div>
