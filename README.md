@@ -165,7 +165,7 @@ Checks cover text-layer extraction, reading order, tables and columns, headers a
 
 The engine produces 13 recommendations from 13 findings: 3 concrete rewrites, 4 that ask the user for a fact, and the rest structural fixes with a stated next step.
 
-| Situation | What POTENCIA does | What it will never do |
+| Situation | What Potencia does | What it will never do |
 |:--|:--|:--|
 | Bullet has no metric | Asks *"What scale did this work operate at — records, requests per day, users, revenue, or time saved? Give the real figure."* | Insert a plausible number |
 | Weak opener ("Responsible for…") | Proposes "Owned …" | Invent scope |
