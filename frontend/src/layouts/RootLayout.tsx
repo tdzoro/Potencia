@@ -74,7 +74,7 @@ export function RootLayout() {
             <span aria-hidden="true"> · </span>
             Beyond Your Resume. Unleash Your Potential.
           </p>
-          <p className="text-xs">Released under the MIT licence.</p>
+          <p className="text-xs">Proprietary · © 2026 POTENCIA Team · All rights reserved.</p>
         </div>
       </footer>
     </div>

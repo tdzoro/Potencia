@@ -119,26 +119,30 @@ export function LandingPage() {
       </section>
 
       <section
-        aria-labelledby="construction-heading"
+        aria-labelledby="start-heading"
         className="rounded-2xl border border-electric/30 bg-gradient-to-br from-electric/10 via-surface/80 to-violet/10 p-6 sm:p-8"
       >
-        <h2 id="construction-heading" className="text-lg font-semibold text-ink">
-          Under active construction
+        <p className="label">Start here</p>
+        <h2 id="start-heading" className="mt-2 text-lg font-semibold text-ink">
+          Upload a resume, leave with a report you can act on.
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          The product foundation is being built in ordered phases: document parsing, then the
-          intelligence and scoring engines, then the analysis interface. This interface deliberately
-          ships without upload or scoring screens — there is nothing behind them yet, and a button
-          that does nothing is worse than no button.
+          PDF or DOCX, up to 5 MiB. POTENCIA extracts the text, rebuilds the sections and scores 27
+          criteria across six weighted categories — naming the line behind every deduction.
         </p>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
-          What already works: this interface, and its live connection to the POTENCIA API. The
-          system status page reads the backend health endpoint in real time, including dependency
-          state when the database is unreachable.
+          From the report you can paste a job description, accept or reject each recommendation,
+          edit your summary and bullets in the studio, compare versions field by field, and export
+          a PDF or DOCX. The original parse is never overwritten.
         </p>
-        <Link to="/status" className="btn-ghost mt-6">
-          View live backend health
-        </Link>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link to="/register" className="btn-primary">
+            Create an account
+          </Link>
+          <Link to="/status" className="btn-ghost">
+            Check system status
+          </Link>
+        </div>
       </section>
     </div>
   )

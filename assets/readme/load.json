@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-11-01T08:52:47Z",
+  "generated_at": "2026-11-01T09:23:06Z",
   "base_url": "http://127.0.0.1:8010",
   "workers": 8,
   "requests_completed": 200,
   "requests_failed": 0,
   "failure_statuses": [],
-  "wall_seconds": 3.666,
-  "throughput_rps": 54.56,
+  "wall_seconds": 3.308,
+  "throughput_rps": 60.46,
   "latency_ms": {
-    "mean": 103.7,
-    "p50": 99.1,
-    "p95": 197.0,
-    "p99": 228.6,
-    "max": 251.5
+    "mean": 93.2,
+    "p50": 90.4,
+    "p95": 129.7,
+    "p99": 189.1,
+    "max": 207.8
   },
   "python": "3.12.3",
   "note": "Single host, single API process, local PostgreSQL. Rate limiting disabled so the measurement covers parsing and scoring rather than the throttle. Not a capacity plan."

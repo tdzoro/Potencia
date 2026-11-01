@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-01T08:52:11Z",
+  "generated_at": "2026-11-01T09:23:02Z",
   "sample": {
     "word_count": 87,
     "roles": 2,
@@ -36,14 +36,14 @@
     }
   },
   "latency_ms": {
-    "upload": 19.7,
-    "analysis_first": 14.9,
-    "analysis_p50": 14.5,
-    "analysis_p95": 16.7,
-    "recommendations": 30.1,
-    "match": 16.8,
-    "export_p50": 54.5,
-    "export_max": 64.9
+    "upload": 38.2,
+    "analysis_first": 34.5,
+    "analysis_p50": 16.7,
+    "analysis_p95": 20.7,
+    "recommendations": 68.8,
+    "match": 32.3,
+    "export_p50": 112.1,
+    "export_max": 240.3
   },
-  "runs": 30
+  "runs": 20
 }

@@ -79,6 +79,22 @@ PYTHONPATH=backend backend/.venv/bin/python scripts/calibrate.py
 
 Parses eight fixtures, scores them, and compares weight vectors by rank correlation. It writes `assets/readme/calibration.json`. The dataset is rubric-assigned, not recruiter-ranked — the script says so, because the difference matters.
 
+## README artefacts
+
+Every figure in the README comes from a script, and the graphs are rendered from the JSON those scripts wrote — a chart cannot disagree with the table beside it.
+
+```bash
+PYTHONPATH=backend backend/.venv/bin/python scripts/readme_charts.py
+
+# Needs the API and a built web app: it seeds an account and runs the journey
+API_BASE_URL=http://127.0.0.1:8010 WEB_URL=http://127.0.0.1:4173 \
+  node scripts/capture_screenshots.mjs
+```
+
+`readme_charts.py` measures nothing; it reads `metrics.json`, `load.json`, `engine_profile.json` and `calibration.json`. `capture_screenshots.mjs` drives the real UI in Chromium — upload, analysis, job match, an accepted recommendation, a named version, two exports — and screenshots each screen, so an image cannot show a screen that does not work.
+
+Measurements are taken with the CPU boosted: on an idling laptop the same code reports 2.7 ms for a parse it measures at 0.84 ms at full clock, which is host state, not a regression. The scripts report what they observe and the README quotes the ratio where the absolute number would mislead.
+
 ## Frontend checks
 
 `npm run typecheck` is the gate: `src/types/domain.ts` mirrors `docs/API.md`, so a contract drift breaks compilation instead of surfacing as a blank panel at runtime. `npm run build` runs it before bundling.
@@ -91,7 +107,7 @@ POTENCIA_RATE_LIMIT_ENABLED=false uvicorn app.main:app --port 8010
 PYTHONPATH=backend backend/.venv/bin/python scripts/load_test.py --base-url http://127.0.0.1:8010
 ```
 
-Each worker registers, uploads one document, then posts analyses — real extraction, real parsing, real scoring. Result of the recorded run: 200 analyses over 8 clients in 2.59 s, **77.4 analyses/s**, p50 72.3 ms, p95 142.8 ms, p99 155.8 ms, 0 failures. Stored in `assets/readme/load.json`.
+Each worker registers, uploads one document, then posts analyses — real extraction, real parsing, real scoring. Result of the recorded run: 200 analyses over 8 clients in 3.31 s, **60.5 analyses/s**, p50 90.4 ms, p95 129.7 ms, p99 189.1 ms, max 207.8 ms, 0 failures. Stored in `assets/readme/load.json`.
 
 This is one host, one API process and one local PostgreSQL. It catches a regression in the engine's cost; it is not a capacity plan.
 

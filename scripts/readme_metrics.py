@@ -131,21 +131,6 @@ def style(ax) -> None:
     ax.grid(axis="y", color=GRID, linewidth=0.6)
 
 
-def bar_chart(labels: list[str], values: list[float], title: str, name: str, color: str) -> None:
-    figure, ax = plt.subplots(figsize=(8.0, 3.4), dpi=200)
-    positions = range(len(labels))
-    ax.bar(positions, values, color=color, width=0.55)
-    ax.set_xticks(list(positions), labels, fontsize=8, color=INK, rotation=0)
-    ax.set_ylim(0, max(100, max(values) * 1.15))
-    ax.set_title(title, fontsize=9, color=INK, loc="left")
-    style(ax)
-    for position, value in zip(positions, values, strict=True):
-        ax.text(position, value + 2, f"{value:.1f}", ha="center", fontsize=7, color=MUTED)
-    figure.tight_layout()
-    figure.savefig(OUT / name, transparent=False, facecolor="white")
-    plt.close(figure)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="http://localhost:8010")
@@ -197,8 +182,6 @@ def main() -> None:
         "Language",
     ]
     values = [components[key]["value"] for key in order]
-
-    bar_chart(labels, values, "Category scores for the sample resume", "score-breakdown.png", ACCENT)
 
     severity_order = ["critical", "high", "medium", "low", "info"]
     counts = {level: sum(1 for finding in analysis["findings"] if finding["severity"] == level) for level in severity_order}

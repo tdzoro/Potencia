@@ -1,7 +1,7 @@
 # Project status
 
 **Last updated:** 1 November 2026
-**Current phase:** 19 complete — proprietary licence and a profiled, faster engine
+**Current phase:** 20 complete — verified screens, regenerated figures, honest copy
 **Methodology version:** 1.0.0
 
 ---
@@ -101,6 +101,20 @@ Every claim in `API.md` that had no implementation behind it is now implemented 
 Result, same host and same script: parse **2.92 → 0.77 ms**, score **1.30 → 0.37 ms**, job match **0.69 → 0.06 ms** (11.5×), full pipeline **6.17 → 1.61 ms** (3.8×), 40-requirement match **3.10 → 0.40 ms**. Parsing is now flat per kilobyte across an 8× size range.
 
 Six guardrail tests make the regression catchable rather than remembering it: heading ordering, a classification budget, one document read per match, a 40-requirement budget, an eight-document parse budget, and a cache-hit assertion. Scores are unchanged — the suite and the calibration harness produce the same numbers.
+
+**PASS.**
+
+### Phase 20 — Verified screens, regenerated figures, honest copy
+
+**PASS.** A full re-verification pass ran the suites, the engine profile, the concurrent load harness and a real browser journey. It found three user-visible defects and one measurement trap:
+
+- **Stale licence in the UI.** The signed-out footer still read "Released under the MIT licence" after the licence change. A repository grep for the old licence text does not catch it, because the sentence lives only in JSX; it was found by photographing the page. The footer now carries the proprietary notice.
+- **Landing page contradicted the product.** An "Under active construction" panel still claimed the interface shipped "without upload or scoring screens — there is nothing behind them yet". The panel now describes the journey that exists and links to registration.
+- **The authenticated UI could not be photographed against the API default.** The browser origin was not in the CORS allow-list, so every authenticated route redirected to sign-in. The measurement stack passes the origin explicitly; the application default is unchanged, and the published compose and CI origins were already allowed.
+
+Two scripts now make the README reproducible rather than hand-written: `scripts/readme_charts.py` renders every graph from the stored JSON, and `scripts/capture_screenshots.mjs` seeds an account, runs the journey and photographs each screen. The remaining finding was methodological: engine timings halve when the host idles its CPU (measured 1.33 GHz versus ~3.5 GHz boosted), so the README quotes the A/B ratio and states the clock dependency instead of presenting one absolute figure as universal.
+
+Figures refreshed from a live run on 1 November 2026: analysis p50 **16.7 ms** (p95 20.7), export p50 **112.1 ms**, concurrent load **60.5 analyses/s** with 200/200 successful at p50 **90.4 ms**, engine warm p50 parse **0.84 ms** and full pipeline **2.12 ms** — consistent with the 0.77 ms / 1.61 ms recorded when the optimisation landed.
 
 **PASS.**
 
