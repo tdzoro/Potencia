@@ -7,6 +7,7 @@ the user received something usable.
 
 from __future__ import annotations
 
+import copy
 import io
 
 import fitz
@@ -167,6 +168,108 @@ def test_the_latest_approved_revision_is_what_gets_exported(client: TestClient) 
     with fitz.open(stream=client.get(record["download_url"]).content, filetype="pdf") as document:
         text = "\n".join(page.get_text() for page in document)
     assert "Staff-level payments engineer" in text
+
+
+def _save_version(
+    client: TestClient, headers: dict[str, str], resume_id: str, parent: dict, summary: str
+) -> dict:
+    content = copy.deepcopy(parent["content"])
+    content["summary"] = {"text": summary, "present": True}
+    response = client.post(
+        f"/api/v1/resumes/{resume_id}/revisions",
+        headers=headers,
+        json={"content": content, "parent_id": parent["id"]},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def _pdf_text(client: TestClient, url: str) -> str:
+    with fitz.open(stream=client.get(url).content, filetype="pdf") as document:
+        return "\n".join(page.get_text() for page in document)
+
+
+def test_a_chosen_version_is_exported_instead_of_the_newest(client: TestClient) -> None:
+    """Two named versions for two roles; the export must honour the choice."""
+    headers = _register(client, "export-chosen@example.com")
+    analysis = _analysis(client, headers)
+    resume_id = analysis["resume_id"]
+    base = client.get(f"/api/v1/resumes/{resume_id}/revisions", headers=headers).json()[0]
+
+    alpha = _save_version(client, headers, resume_id, base, "Alpha revision marker.")
+    beta = _save_version(client, headers, resume_id, alpha, "Beta revision marker.")
+
+    chosen = _export(
+        client,
+        headers,
+        {
+            "analysis_id": analysis["id"],
+            "kind": "improved_resume",
+            "format": "pdf",
+            "revision_id": alpha["id"],
+        },
+    )
+    assert chosen["revision_id"] == alpha["id"]
+    chosen_text = _pdf_text(client, chosen["download_url"])
+    assert "Alpha revision marker" in chosen_text
+    assert "Beta revision marker" not in chosen_text
+
+    # Omitting the version keeps the documented default: the newest.
+    newest = _export(
+        client,
+        headers,
+        {"analysis_id": analysis["id"], "kind": "improved_resume", "format": "pdf"},
+    )
+    assert newest["revision_id"] is None
+    newest_text = _pdf_text(client, newest["download_url"])
+    assert "Beta revision marker" in newest_text
+    assert beta["id"]  # the version that was newest at the time
+
+
+def test_a_version_from_another_resume_cannot_be_exported(client: TestClient) -> None:
+    headers = _register(client, "export-foreign-version@example.com")
+    first = _analysis(client, headers)
+    second = _analysis(client, headers)
+    foreign = client.get(
+        f"/api/v1/resumes/{second['resume_id']}/revisions", headers=headers
+    ).json()[0]
+
+    response = client.post(
+        "/api/v1/exports",
+        headers=headers,
+        json={
+            "analysis_id": first["id"],
+            "kind": "improved_resume",
+            "format": "pdf",
+            "revision_id": foreign["id"],
+        },
+    )
+
+    assert response.status_code == 404
+    # A rejected request must not leave a failed export row behind.
+    assert client.get(f"/api/v1/analyses/{first['id']}/exports", headers=headers).json() == []
+
+
+def test_a_report_cannot_be_paired_with_a_resume_version(client: TestClient) -> None:
+    headers = _register(client, "export-report-version@example.com")
+    analysis = _analysis(client, headers)
+    revision = client.get(
+        f"/api/v1/resumes/{analysis['resume_id']}/revisions", headers=headers
+    ).json()[0]
+
+    response = client.post(
+        "/api/v1/exports",
+        headers=headers,
+        json={
+            "analysis_id": analysis["id"],
+            "kind": "analysis_report",
+            "format": "pdf",
+            "revision_id": revision["id"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["details"][0]["field"] == "revision_id"
 
 
 def test_a_tampered_or_foreign_token_yields_no_file(client: TestClient) -> None:

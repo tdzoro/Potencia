@@ -330,6 +330,8 @@ Revision `0` is always the untouched parse. The original is immutable; every edi
 ```json
 {
   "id": "exp_018f...",
+  "analysis_id": "018f...",
+  "revision_id": "rev_018f...",
   "kind": "improved_resume",
   "format": "pdf",
   "status": "completed",
@@ -340,6 +342,7 @@ Revision `0` is always the untouched parse. The original is immutable; every edi
 ```
 
 `kind` ∈ `analysis_report` | `improved_resume`. `format` ∈ `pdf` | `docx`.
+`revision_id` records which resume version was rendered; `null` means "whatever was newest at the time" — the only behaviour exports could have before versions could be chosen.
 `download_url` is short-lived (15 minutes) and single-user. **Internal storage paths and provider URLs never appear in a response.**
 
 ---
@@ -407,7 +410,7 @@ Rules: password minimum 12 characters, checked against a breach corpus in Phase 
 
 `parent_id` must belong to the same resume and account, otherwise `404`. It is a UUID: a malformed value is a `422` validation error, never a `500`.
 
-`GET /revisions/compare?from_revision=<uuid>&to_revision=<uuid>` returns the fields a user can edit that differ between the two versions:
+`GET /revisions/compare?from_revision=<uuid>&to_revision=<uuid>` returns the fields the studio can edit that differ between the two versions:
 
 ```json
 {
@@ -423,7 +426,7 @@ Rules: password minimum 12 characters, checked against a breach corpus in Phase 
 }
 ```
 
-Only summary, the explicit skills list and experience bullets are compared, because those are exactly the fields the studio can change; a comparison that claimed to diff fields the user cannot edit would be noise. `changes` is empty when the versions are identical.
+Compared fields: `summary`, `skills` (the explicit list), `experience[i].bullet[j]`, `projects[i].name` / `.description` / `.technologies` / `.bullet[j]`, and `education[i].institution` / `.degree` / `.field` / `.details`. Those are exactly the fields the studio can change; a comparison that claimed to diff fields the user cannot edit would be noise. `changes` is empty when the versions are identical.
 
 `POST /resumes` is `multipart/form-data` with a single field `file`.
 
@@ -526,8 +529,12 @@ Extension is never trusted on its own. A file named `resume.pdf` that is not a P
 | `GET` | `/exports/{export_id}/download` | signed URL | `200` binary |
 
 ```json
-{ "analysis_id": "018f...", "kind": "improved_resume", "format": "pdf" }
+{ "analysis_id": "018f...", "kind": "improved_resume", "format": "pdf", "revision_id": "rev_018f..." }
 ```
+
+`revision_id` is optional and applies to `kind: improved_resume` only: it selects a named version, so a resume with a "Backend" and a "Data" version exports the right one. Omitted, the newest approved version is rendered — the default that keeps the single-version flow unchanged.
+
+A revision belonging to another resume or another account is `404`, identical to a missing one, and creates no export row. Pairing `revision_id` with `kind: analysis_report` is `422` (`details[0].field = "revision_id"`): a report describes an analysis, not a resume version.
 
 Download is authorized by the signed token in `download_url`, bound to the owning user and expiring in 15 minutes. Guessing an export id must not yield a file.
 

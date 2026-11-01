@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '../components/Badge'
 import { EmptyState, ErrorNotice, LoadingState, PageHeader } from '../components/States'
 import { compareRevisions, createRevision, listRevisions } from '../services/resumes'
-import type { ResumeStructure, Revision } from '../types/domain'
+import type { EducationEntry, ProjectEntry, ResumeStructure, Revision } from '../types/domain'
 
 function cloneStructure(structure: ResumeStructure): ResumeStructure {
   return JSON.parse(JSON.stringify(structure)) as ResumeStructure
@@ -48,6 +48,10 @@ export function StudioPage() {
   const [working, setWorking] = useState<ResumeStructure | null>(null)
   const [baseline, setBaseline] = useState<ResumeStructure | null>(null)
   const [skillsDraft, setSkillsDraft] = useState('')
+  // Comma- and line-separated fields are held as raw text while the user types,
+  // so a trailing comma is not deleted mid-keystroke.
+  const [technologiesDraft, setTechnologiesDraft] = useState<Record<number, string>>({})
+  const [detailsDraft, setDetailsDraft] = useState<Record<number, string>>({})
   const [labelDraft, setLabelDraft] = useState('')
   const [compareFrom, setCompareFrom] = useState('')
   const [compareTo, setCompareTo] = useState('')
@@ -58,12 +62,22 @@ export function StudioPage() {
       setWorking(null)
       setBaseline(null)
       setSkillsDraft('')
+      setTechnologiesDraft({})
+      setDetailsDraft({})
       return
     }
     const copy = cloneStructure(content)
     setWorking(copy)
     setBaseline(cloneStructure(content))
     setSkillsDraft(copy.skills.explicit.join(', '))
+    setTechnologiesDraft(
+      Object.fromEntries(
+        copy.projects.map((project, index) => [index, project.technologies.join(', ')]),
+      ),
+    )
+    setDetailsDraft(
+      Object.fromEntries(copy.education.map((entry, index) => [index, entry.details.join('\n')])),
+    )
   }, [current?.id, current?.content])
 
   // Default the comparison to first version vs newest, which is the pair a user
@@ -96,7 +110,17 @@ export function StudioPage() {
         },
       }
       return createRevision(resumeId, {
-        content: payload,
+        content: {
+          ...payload,
+          projects: payload.projects.map((project, index) => ({
+            ...project,
+            technologies: splitTechnologies(index),
+          })),
+          education: payload.education.map((entry, index) => ({
+            ...entry,
+            details: splitDetails(index),
+          })),
+        },
         parent_id: current.id,
         label: labelDraft.trim() || null,
         applied_recommendation_ids: [],
@@ -146,8 +170,70 @@ export function StudioPage() {
       list.push('Skills list')
     }
 
+    const projectCount = Math.max(baseline.projects.length, working.projects.length)
+    for (let projectIndex = 0; projectIndex < projectCount; projectIndex += 1) {
+      const baseProject = baseline.projects[projectIndex]
+      const workProject = working.projects[projectIndex]
+      const name = workProject?.name ?? baseProject?.name ?? `Project ${projectIndex + 1}`
+
+      if ((baseProject?.name ?? '') !== (workProject?.name ?? '')) {
+        list.push(`${name} · name`)
+      }
+      if ((baseProject?.description ?? '') !== (workProject?.description ?? '')) {
+        list.push(`${name} · description`)
+      }
+      if (
+        (baseProject?.technologies ?? []).join(', ') !== splitTechnologies(projectIndex).join(', ')
+      ) {
+        list.push(`${name} · technologies`)
+      }
+
+      const baseBullets = baseProject?.bullets ?? []
+      const workBullets = workProject?.bullets ?? []
+      const bulletCount = Math.max(baseBullets.length, workBullets.length)
+      for (let bulletIndex = 0; bulletIndex < bulletCount; bulletIndex += 1) {
+        if ((baseBullets[bulletIndex]?.text ?? '') !== (workBullets[bulletIndex]?.text ?? '')) {
+          list.push(`${name} · bullet ${bulletIndex + 1}`)
+        }
+      }
+    }
+
+    const educationCount = Math.max(baseline.education.length, working.education.length)
+    for (let entryIndex = 0; entryIndex < educationCount; entryIndex += 1) {
+      const baseEntry = baseline.education[entryIndex]
+      const workEntry = working.education[entryIndex]
+      const name = workEntry?.institution ?? baseEntry?.institution ?? `Education ${entryIndex + 1}`
+
+      if ((baseEntry?.institution ?? '') !== (workEntry?.institution ?? '')) {
+        list.push(`${name} · institution`)
+      }
+      if ((baseEntry?.degree ?? '') !== (workEntry?.degree ?? '')) {
+        list.push(`${name} · degree`)
+      }
+      if ((baseEntry?.field ?? '') !== (workEntry?.field ?? '')) {
+        list.push(`${name} · field`)
+      }
+      if ((baseEntry?.details ?? []).join('\n') !== splitDetails(entryIndex).join('\n')) {
+        list.push(`${name} · details`)
+      }
+    }
+
     return list
-  }, [working, baseline, skillsDraft])
+  }, [working, baseline, skillsDraft, technologiesDraft, detailsDraft])
+
+  function splitTechnologies(index: number): string[] {
+    return (technologiesDraft[index] ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0)
+  }
+
+  function splitDetails(index: number): string[] {
+    return (detailsDraft[index] ?? '')
+      .split('\n')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0)
+  }
 
   function updateSummary(text: string): void {
     setWorking((previous) => (previous ? { ...previous, summary: { ...previous.summary, text } } : previous))
@@ -171,6 +257,56 @@ export function StudioPage() {
     })
   }
 
+  function updateProject(index: number, patch: Partial<ProjectEntry>): void {
+    setWorking((previous) => {
+      if (!previous) {
+        return previous
+      }
+      return {
+        ...previous,
+        projects: previous.projects.map((project, inner) =>
+          inner === index ? { ...project, ...patch } : project,
+        ),
+      }
+    })
+  }
+
+  function updateProjectBullet(projectIndex: number, bulletIndex: number, text: string): void {
+    setWorking((previous) => {
+      if (!previous) {
+        return previous
+      }
+      return {
+        ...previous,
+        projects: previous.projects.map((project, index) => {
+          if (index !== projectIndex) {
+            return project
+          }
+          return {
+            ...project,
+            bullets: project.bullets.map((bullet, inner) =>
+              inner === bulletIndex ? { ...bullet, text } : bullet,
+            ),
+          }
+        }),
+      }
+    })
+  }
+
+  function updateEducation(index: number, patch: Partial<EducationEntry>): void {
+    setWorking((previous) => {
+      if (!previous) {
+        return previous
+      }
+      return {
+        ...previous,
+        education: previous.education.map((entry, inner) =>
+          inner === index ? { ...entry, ...patch } : entry,
+        ),
+      }
+    })
+  }
+
   function resetDraft(): void {
     if (!baseline) {
       return
@@ -178,6 +314,14 @@ export function StudioPage() {
     const copy = cloneStructure(baseline)
     setWorking(copy)
     setSkillsDraft(copy.skills.explicit.join(', '))
+    setTechnologiesDraft(
+      Object.fromEntries(
+        copy.projects.map((project, index) => [index, project.technologies.join(', ')]),
+      ),
+    )
+    setDetailsDraft(
+      Object.fromEntries(copy.education.map((entry, index) => [index, entry.details.join('\n')])),
+    )
     save.reset()
   }
 
@@ -214,7 +358,7 @@ export function StudioPage() {
       <PageHeader
         eyebrow="Resume improvement studio"
         title="Edit what you can prove"
-        description="Change your summary, your bullet wording and your skills list. Saving creates a new revision — the original parse is never overwritten, so you can always walk back."
+        description="Change your summary, your bullets, your skills, your projects and your education. Saving creates a new revision — the original parse is never overwritten, so you can always walk back."
         actions={
           <Link to="/app/history" className="btn-ghost">
             Resume history
@@ -290,6 +434,181 @@ export function StudioPage() {
                         ))}
                       </ul>
                     )}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+
+          <section className="panel p-5" aria-labelledby="projects-heading">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="projects-heading" className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">
+                Projects
+              </h2>
+              <Badge tone="neutral">{working.projects.length} parsed</Badge>
+            </div>
+
+            {working.projects.length === 0 ? (
+              <p className="mt-3 text-sm text-muted">
+                No projects were parsed from this document. Nothing is invented here — add them to the document
+                and upload it again.
+              </p>
+            ) : (
+              <ol className="mt-4 flex flex-col gap-6">
+                {working.projects.map((project, projectIndex) => (
+                  <li key={`${project.name ?? 'project'}-${projectIndex}`} className="flex flex-col gap-3">
+                    <label
+                      htmlFor={`project-name-${projectIndex}`}
+                      className="flex flex-col gap-1 text-xs text-muted"
+                    >
+                      Project name
+                      <input
+                        id={`project-name-${projectIndex}`}
+                        type="text"
+                        value={project.name ?? ''}
+                        onChange={(event) => updateProject(projectIndex, { name: event.target.value })}
+                        className="rounded-xl border border-line bg-void/60 px-3 py-2 text-sm text-ink focus:border-electric"
+                      />
+                    </label>
+
+                    <label
+                      htmlFor={`project-description-${projectIndex}`}
+                      className="flex flex-col gap-1 text-xs text-muted"
+                    >
+                      Description
+                      <textarea
+                        id={`project-description-${projectIndex}`}
+                        value={project.description ?? ''}
+                        onChange={(event) => updateProject(projectIndex, { description: event.target.value })}
+                        rows={2}
+                        className="rounded-xl border border-line bg-void/60 px-3 py-2 text-sm leading-relaxed text-ink focus:border-electric"
+                      />
+                    </label>
+
+                    <label
+                      htmlFor={`project-technologies-${projectIndex}`}
+                      className="flex flex-col gap-1 text-xs text-muted"
+                    >
+                      Technologies (comma-separated)
+                      <input
+                        id={`project-technologies-${projectIndex}`}
+                        type="text"
+                        value={technologiesDraft[projectIndex] ?? ''}
+                        onChange={(event) =>
+                          setTechnologiesDraft((previous) => ({
+                            ...previous,
+                            [projectIndex]: event.target.value,
+                          }))
+                        }
+                        className="rounded-xl border border-line bg-void/60 px-3 py-2 text-sm text-ink focus:border-electric"
+                      />
+                    </label>
+
+                    {project.bullets.length === 0 ? (
+                      <p className="text-xs text-muted">This project has no bullet points in the parsed structure.</p>
+                    ) : (
+                      <ul className="flex flex-col gap-2">
+                        {project.bullets.map((bullet, bulletIndex) => (
+                          <li key={`${projectIndex}-${bulletIndex}`}>
+                            <label
+                              htmlFor={`project-bullet-${projectIndex}-${bulletIndex}`}
+                              className="sr-only"
+                            >
+                              Bullet {bulletIndex + 1} of {project.name ?? 'project'}
+                            </label>
+                            <textarea
+                              id={`project-bullet-${projectIndex}-${bulletIndex}`}
+                              value={bullet.text}
+                              onChange={(event) =>
+                                updateProjectBullet(projectIndex, bulletIndex, event.target.value)
+                              }
+                              rows={2}
+                              className="w-full rounded-xl border border-line bg-void/60 px-3 py-2 text-sm leading-relaxed text-ink focus:border-electric"
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+
+          <section className="panel p-5" aria-labelledby="education-heading">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="education-heading" className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">
+                Education
+              </h2>
+              <Badge tone="neutral">{working.education.length} parsed</Badge>
+            </div>
+
+            {working.education.length === 0 ? (
+              <p className="mt-3 text-sm text-muted">
+                No education entries were parsed. A non-standard heading is the usual cause; rename it to
+                "Education" in the document and upload it again.
+              </p>
+            ) : (
+              <ol className="mt-4 flex flex-col gap-6">
+                {working.education.map((entry, entryIndex) => (
+                  <li key={`${entry.institution ?? 'education'}-${entryIndex}`} className="flex flex-col gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label
+                        htmlFor={`education-institution-${entryIndex}`}
+                        className="flex flex-col gap-1 text-xs text-muted"
+                      >
+                        Institution
+                        <input
+                          id={`education-institution-${entryIndex}`}
+                          type="text"
+                          value={entry.institution ?? ''}
+                          onChange={(event) => updateEducation(entryIndex, { institution: event.target.value })}
+                          className="rounded-xl border border-line bg-void/60 px-3 py-2 text-sm text-ink focus:border-electric"
+                        />
+                      </label>
+                      <label
+                        htmlFor={`education-degree-${entryIndex}`}
+                        className="flex flex-col gap-1 text-xs text-muted"
+                      >
+                        Degree
+                        <input
+                          id={`education-degree-${entryIndex}`}
+                          type="text"
+                          value={entry.degree ?? ''}
+                          onChange={(event) => updateEducation(entryIndex, { degree: event.target.value })}
+                          className="rounded-xl border border-line bg-void/60 px-3 py-2 text-sm text-ink focus:border-electric"
+                        />
+                      </label>
+                      <label
+                        htmlFor={`education-field-${entryIndex}`}
+                        className="flex flex-col gap-1 text-xs text-muted"
+                      >
+                        Field
+                        <input
+                          id={`education-field-${entryIndex}`}
+                          type="text"
+                          value={entry.field ?? ''}
+                          onChange={(event) => updateEducation(entryIndex, { field: event.target.value })}
+                          className="rounded-xl border border-line bg-void/60 px-3 py-2 text-sm text-ink focus:border-electric"
+                        />
+                      </label>
+                    </div>
+
+                    <label
+                      htmlFor={`education-details-${entryIndex}`}
+                      className="flex flex-col gap-1 text-xs text-muted"
+                    >
+                      Detail lines (one per line)
+                      <textarea
+                        id={`education-details-${entryIndex}`}
+                        value={detailsDraft[entryIndex] ?? ''}
+                        onChange={(event) =>
+                          setDetailsDraft((previous) => ({ ...previous, [entryIndex]: event.target.value }))
+                        }
+                        rows={2}
+                        className="rounded-xl border border-line bg-void/60 px-3 py-2 text-sm leading-relaxed text-ink focus:border-electric"
+                      />
+                    </label>
                   </li>
                 ))}
               </ol>

@@ -89,11 +89,15 @@ class CreateExportRequest(BaseModel):
     analysis_id: uuid.UUID
     kind: Literal["analysis_report", "improved_resume"]
     format: Literal["pdf", "docx"]
+    # Omit for "the newest approved version". A resume can hold several named
+    # versions, so an export of a specific one must be expressible.
+    revision_id: uuid.UUID | None = None
 
 
 class ExportOut(BaseModel):
     id: str
     analysis_id: str
+    revision_id: str | None = None
     kind: str
     format: str
     status: str

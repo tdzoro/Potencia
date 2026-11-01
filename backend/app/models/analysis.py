@@ -109,6 +109,11 @@ class Export(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     analysis_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("analyses.id", ondelete="CASCADE"), nullable=False
     )
+    # Which version was rendered. Null means "the newest at the time", which is
+    # what exports created before versions could be chosen actually did.
+    revision_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("resume_revisions.id", ondelete="SET NULL"), nullable=True
+    )
     kind: Mapped[str] = mapped_column(String(24), nullable=False)
     format: Mapped[str] = mapped_column(String(8), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="queued")

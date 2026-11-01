@@ -209,6 +209,24 @@ test.describe('the authenticated journey', () => {
     await expect(panel).toContainText(improved)
   })
 
+  test('a named version can be chosen for export', async ({ page, context }) => {
+    await withSession(context, seeded.token)
+
+    await page.goto(`/app/analyses/${seeded.analysisId}/export`)
+    const picker = page.locator('#export-version')
+    await expect(picker).toContainText('Platform')
+
+    const option = page.locator('#export-version option', { hasText: 'Platform' })
+    await picker.selectOption(await option.getAttribute('value'))
+    await page.getByRole('button', { name: /generate resume pdf/i }).click()
+
+    // The generated file is labelled with the version that produced it, so the
+    // history answers "which version is this?" without opening the file.
+    const historySection = page.locator('section[aria-labelledby="export-history"]')
+    await expect(historySection).toContainText(/Platform/)
+    await expect(historySection.getByRole('link', { name: /^download$/i }).first()).toBeVisible()
+  })
+
   test('history lists the uploaded resume and the analysis', async ({ page, context }) => {
     await withSession(context, seeded.token)
 

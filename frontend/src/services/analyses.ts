@@ -86,6 +86,7 @@ export function createExport(input: {
   analysis_id: string
   kind: 'analysis_report' | 'improved_resume'
   format: 'pdf' | 'docx'
+  revision_id?: string | null
 }): Promise<ExportRecord> {
   return authedRequest<ExportRecord>('/api/v1/exports', { method: 'POST', body: input })
 }

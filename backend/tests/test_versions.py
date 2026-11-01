@@ -8,6 +8,7 @@ comparison crosses into data the caller does not own.
 
 from __future__ import annotations
 
+import copy
 import io
 
 import fitz
@@ -176,6 +177,64 @@ def test_comparing_a_version_with_itself_reports_no_changes(client: TestClient) 
 
     assert response.status_code == 200
     assert response.json()["changes"] == []
+
+
+def test_comparison_covers_projects_and_education(client: TestClient) -> None:
+    """The diff must not stop at summary and bullets.
+
+    Projects and education are editable in the studio, so a change there has to
+    appear in the comparison — otherwise a user can edit a field and be told
+    nothing changed.
+    """
+    headers = _register(client, "versions-fields@example.com")
+    resume_id, base = _resume_with_initial_revision(client, headers)
+
+    with_project = copy.deepcopy(base["content"])
+    with_project["projects"] = [
+        {
+            "name": "Ledger",
+            "description": "Internal payments ledger.",
+            "technologies": ["Python", "PostgreSQL"],
+            "bullets": [{"text": "Reconciled 2M rows a day.", "span": None}],
+        }
+    ]
+    with_project["education"][0]["details"] = ["Graduated with distinction"]
+    first = client.post(
+        f"/api/v1/resumes/{resume_id}/revisions",
+        headers=headers,
+        json={"content": with_project, "parent_id": base["id"]},
+    )
+    assert first.status_code == 201, first.text
+    first_body = first.json()
+
+    edited = copy.deepcopy(first_body["content"])
+    edited["projects"][0]["description"] = "Ledger that reconciles vendor payouts."
+    edited["projects"][0]["technologies"] = ["Python", "PostgreSQL", "Redis"]
+    edited["education"][0]["degree"] = "M.Tech"
+    second = client.post(
+        f"/api/v1/resumes/{resume_id}/revisions",
+        headers=headers,
+        json={"content": edited, "parent_id": first_body["id"]},
+    )
+    assert second.status_code == 201, second.text
+
+    response = client.get(
+        f"/api/v1/resumes/{resume_id}/revisions/compare",
+        headers=headers,
+        params={"from_revision": first_body["id"], "to_revision": second.json()["id"]},
+    )
+
+    assert response.status_code == 200, response.text
+    fields = {change["field"]: change for change in response.json()["changes"]}
+    assert set(fields) == {
+        "projects[0].description",
+        "projects[0].technologies",
+        "education[0].degree",
+    }
+    assert fields["projects[0].description"]["after"] == "Ledger that reconciles vendor payouts."
+    assert fields["projects[0].technologies"]["after"] == "Python, PostgreSQL, Redis"
+    assert fields["education[0].degree"]["before"] == "B.Tech"
+    assert fields["education[0].degree"]["after"] == "M.Tech"
 
 
 def test_one_can_compare_versions_of_a_different_resume(client: TestClient) -> None:

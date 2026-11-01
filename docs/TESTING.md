@@ -3,9 +3,9 @@
 ## Running the suites
 
 ```bash
-cd backend && pytest -q          # 140 tests, hermetic
+cd backend && pytest -q          # 144 tests, hermetic
 cd frontend && npm run build     # strict typecheck + production build
-cd frontend && npm run e2e       # 10 browser tests, needs a live stack
+cd frontend && npm run e2e       # 11 browser tests, needs a live stack
 ```
 
 The backend suite needs no PostgreSQL, no network and no AI provider: it runs on an in-memory SQLite database per test, with uploads in a temporary directory. The browser suite needs a running API and a built web app; it seeds its own account, so it never depends on data already in a database.
@@ -23,13 +23,13 @@ The backend suite needs no PostgreSQL, no network and no AI provider: it runs on
 | Resumes API | `test_resumes_api.py` | Upload → parse → analyse → report, cross-user isolation, disguised files, cascade delete |
 | Matching | `test_matching.py` | Requirement bucketing (`need` vs `nice to have`), four skill states, year arithmetic, determinism |
 | Recommendations and revisions | `test_recommendations.py` | Evidence on every card, idempotent generation, accept/reject/edit, metric gaps asked not invented, revision 0 immutability, foreign parent rejected |
-| Exports | `test_exports.py` | Downloaded PDFs and DOCX re-opened and searched for the real score and content, newest revision exported, tampered token rejected |
+| Exports | `test_exports.py` | Downloaded PDFs and DOCX re-opened and searched for the real score and content, newest revision exported by default, a chosen version exported instead of the newest, a version from another resume rejected without leaving a failed row, report/version pairing rejected, tampered token rejected |
 | Security | `test_security.py` | Rate limiting with `Retry-After`, security headers, no internal leakage |
 | Idempotency | `test_idempotency.py` | Replay returns the original body and creates nothing, keys are per account, cross-endpoint reuse is `409`, short keys are `422`, expiry allows reuse |
 | Pagination | `test_pagination.py` | Pages walk without gaps or repeats, newest first, malformed cursor is `422` |
 | Rate-limit store | `test_ratelimit_store.py` | Middleware honours an injected store, in-memory window, Redis `INCR`+`EXPIRE NX` semantics, unreachable Redis degrades |
 | Calibration | `test_calibration.py` | Spearman on monotone and tied data, applicability-aware totals, normalisation |
-| Versions | `test_versions.py` | Labels stored and returned, unlabelled stays null, malformed `parent_id` is `422` not `500`, over-length label rejected, field-level comparison, identical versions report no changes, cross-resume and cross-account comparison is `404` |
+| Versions | `test_versions.py` | Labels stored and returned, unlabelled stays null, malformed `parent_id` is `422` not `500`, over-length label rejected, field-level comparison including projects and education, identical versions report no changes, cross-resume and cross-account comparison is `404` |
 | Retention | `test_retention.py` | Expired file and row both removed, download link stops serving, unexpired export survives, an expired row without bytes still goes |
 
 ## Tests that would fail if the product lied
@@ -56,6 +56,7 @@ The backend suite needs no PostgreSQL, no network and no AI provider: it runs on
 | Match | A pasted description produces an estimate and names `Terraform` as a gap |
 | Studio | A summary edit saves as a new revision |
 | Version comparison | A version is named, appears in the version picker, and the comparison names `summary` as the changed field with the new text |
+| Version export | The named version is selectable on the export screen, generates a file, and the export history labels it with that version |
 | History | The uploaded resume and its analysis are listed |
 
 The suite found a real gap when first run: the landing page had no route to sign-in. The fix was in the application, not the test.

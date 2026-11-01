@@ -67,6 +67,29 @@ def _latest_structure(db: Session, user: User, resume: Resume) -> ResumeStructur
     raise PotenciaError("unprocessable", 422, "The resume has no usable structure to export.")
 
 
+def _structure_for(
+    db: Session, user: User, resume: Resume, revision_id: uuid.UUID | None
+) -> ResumeStructure:
+    """The version to render: an explicitly chosen one, else the newest.
+
+    A resume can carry several named versions for different roles, so "newest"
+    is a default rather than the only option. A revision that belongs to another
+    resume or another account is `404`, exactly like a missing one.
+    """
+    if revision_id is None:
+        return _latest_structure(db, user, resume)
+    revision = db.scalar(
+        select(ResumeRevision).where(
+            ResumeRevision.id == revision_id,
+            ResumeRevision.resume_id == resume.id,
+            ResumeRevision.user_id == user.id,
+        )
+    )
+    if revision is None or not revision.content:
+        raise PotenciaError("not_found", 404, "Revision not found.")
+    return ResumeStructure.model_validate(revision.content)
+
+
 def _verify_render(data: bytes, fmt: str) -> None:
     """Re-open the rendered bytes; a produced file is not a valid file."""
     if not data:
@@ -86,7 +109,13 @@ def _verify_render(data: bytes, fmt: str) -> None:
 
 
 def create_export(
-    db: Session, user: User, *, analysis_id: uuid.UUID, kind: str, fmt: str
+    db: Session,
+    user: User,
+    *,
+    analysis_id: uuid.UUID,
+    kind: str,
+    fmt: str,
+    revision_id: uuid.UUID | None = None,
 ) -> Export:
     analysis = analysis_service.get_analysis(db, user, analysis_id)
     if analysis.status != "completed":
@@ -97,9 +126,17 @@ def create_export(
     if resume is None:
         raise PotenciaError("not_found", 404, "Resume not found.")
 
+    # Resolve the version before queueing anything: a revision that does not
+    # belong here is a bad request, not a failed render, and must not leave a
+    # failed export row behind.
+    structure = None
+    if kind != "analysis_report":
+        structure = _structure_for(db, user, resume, revision_id)
+
     record = Export(
         user_id=user.id,
         analysis_id=analysis.id,
+        revision_id=revision_id if kind != "analysis_report" else None,
         kind=kind,
         format=fmt,
         status="queued",
@@ -116,7 +153,7 @@ def create_export(
                 generated_at=datetime.now(timezone.utc),
             )
         else:
-            structure = _latest_structure(db, user, resume)
+            assert structure is not None  # resolved above
             data = render_resume_pdf(structure) if fmt == "pdf" else render_resume_docx(structure)
         _verify_render(data, fmt)
         key, _digest = get_store().put(data, MEDIA_TYPES[fmt], prefix="exports/")
@@ -192,6 +229,7 @@ def to_payload(record: Export, download_url: str | None) -> dict:
     return {
         "id": str(record.id),
         "analysis_id": str(record.analysis_id),
+        "revision_id": str(record.revision_id) if record.revision_id else None,
         "kind": record.kind,
         "format": record.format,
         "status": record.status,

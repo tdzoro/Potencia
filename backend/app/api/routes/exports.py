@@ -55,8 +55,20 @@ def create_export(
             "An analysis report is exported as PDF only.",
             [{"field": "format", "issue": "unsupported_pairing"}],
         )
+    if payload.kind == "analysis_report" and payload.revision_id is not None:
+        raise PotenciaError(
+            "validation_error",
+            422,
+            "An analysis report describes the analysis, not a resume version.",
+            [{"field": "revision_id", "issue": "unsupported_pairing"}],
+        )
     record = export_service.create_export(
-        db, user, analysis_id=payload.analysis_id, kind=payload.kind, fmt=payload.format
+        db,
+        user,
+        analysis_id=payload.analysis_id,
+        kind=payload.kind,
+        fmt=payload.format,
+        revision_id=payload.revision_id,
     )
     out = to_api_out(request, record)
     idempotency.remember(db, user, request, out, status=202)

@@ -409,6 +409,7 @@ export interface Match {
 export interface ExportRecord {
   id: string
   analysis_id: string
+  revision_id: string | null
   kind: 'analysis_report' | 'improved_resume'
   format: 'pdf' | 'docx'
   status: string

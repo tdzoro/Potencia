@@ -60,10 +60,11 @@ def create_revision(
 
 
 def _flatten(structure: ResumeStructure) -> dict[str, str]:
-    """A comparable view of the fields a user can actually edit.
+    """A comparable view of the fields the studio can edit.
 
     Flattening to `field -> text` keeps the diff readable and keeps the
-    comparison honest: only fields the studio can change are compared.
+    comparison honest: only fields a user can change are compared, so a version
+    never appears to have "changed" something nobody touched.
     """
     fields: dict[str, str] = {}
     fields["summary"] = structure.summary.text or ""
@@ -71,6 +72,17 @@ def _flatten(structure: ResumeStructure) -> dict[str, str]:
     for role_index, role in enumerate(structure.experience):
         for bullet_index, bullet in enumerate(role.bullets):
             fields[f"experience[{role_index}].bullet[{bullet_index}]"] = bullet.text
+    for project_index, project in enumerate(structure.projects):
+        fields[f"projects[{project_index}].name"] = project.name or ""
+        fields[f"projects[{project_index}].description"] = project.description or ""
+        fields[f"projects[{project_index}].technologies"] = ", ".join(project.technologies)
+        for bullet_index, bullet in enumerate(project.bullets):
+            fields[f"projects[{project_index}].bullet[{bullet_index}]"] = bullet.text
+    for entry_index, entry in enumerate(structure.education):
+        fields[f"education[{entry_index}].institution"] = entry.institution or ""
+        fields[f"education[{entry_index}].degree"] = entry.degree or ""
+        fields[f"education[{entry_index}].field"] = entry.field or ""
+        fields[f"education[{entry_index}].details"] = " | ".join(entry.details)
     return fields
 
 

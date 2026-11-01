@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '../components/Badge'
 import { EmptyState, ErrorNotice, LoadingState, PageHeader } from '../components/States'
 import { createExport, getReport, listExports } from '../services/analyses'
+import { listRevisions } from '../services/resumes'
 import { cn } from '../utils/cn'
-import type { ExportRecord } from '../types/domain'
+import type { ExportRecord, Revision } from '../types/domain'
 
 function formatBytes(bytes: number | null): string {
   if (bytes === null || bytes <= 0) {
@@ -28,10 +29,24 @@ function formatTimestamp(value: string | null): string {
   return date.toLocaleString()
 }
 
-function ExportCard({ record }: { record: ExportRecord }) {
+/** "v2 · Platform", or the truth when that version no longer exists. */
+function versionLabel(record: ExportRecord, versions: Revision[]): string | null {
+  if (!record.revision_id) {
+    return null
+  }
+  const index = versions.findIndex((revision) => revision.id === record.revision_id)
+  if (index < 0) {
+    return 'version unavailable'
+  }
+  const label = versions[index]?.label
+  return `v${index}${label ? ` · ${label}` : ''}`
+}
+
+function ExportCard({ record, versions }: { record: ExportRecord; versions: Revision[] }) {
   const statusTone = record.status === 'completed' ? 'ok' : record.status === 'failed' ? 'bad' : 'warn'
   const failureMessage =
     typeof record.failure?.['message'] === 'string' ? record.failure['message'] : null
+  const exported = versionLabel(record, versions)
 
   return (
     <li className="rounded-xl border border-line/70 bg-surface/60 p-4">
@@ -40,6 +55,7 @@ function ExportCard({ record }: { record: ExportRecord }) {
           <p className="text-sm font-medium text-ink">
             {record.kind === 'analysis_report' ? 'Analysis report' : 'Improved resume'} ·{' '}
             {record.format.toUpperCase()}
+            {exported ? <span className="text-muted"> · {exported}</span> : null}
           </p>
           <p className="mt-1 text-xs text-muted">
             {formatBytes(record.size_bytes)} · expires {formatTimestamp(record.expires_at)}
@@ -74,6 +90,7 @@ function ExportCard({ record }: { record: ExportRecord }) {
 export function ExportPage() {
   const { analysisId } = useParams<{ analysisId: string }>()
   const [resumeFormat, setResumeFormat] = useState<'pdf' | 'docx'>('pdf')
+  const [revisionChoice, setRevisionChoice] = useState('')
   const queryClient = useQueryClient()
 
   const report = useQuery({
@@ -81,6 +98,16 @@ export function ExportPage() {
     queryFn: () => getReport(analysisId as string),
     enabled: Boolean(analysisId),
   })
+
+  // Shared cache key with the studio: a version saved there is selectable here
+  // without a reload, and the label in the history is the label it was given.
+  const resumeId = report.data?.resume_id
+  const revisions = useQuery({
+    queryKey: ['revisions', resumeId],
+    queryFn: () => listRevisions(resumeId as string),
+    enabled: Boolean(resumeId),
+  })
+  const versions: Revision[] = revisions.data ?? []
 
   // Export history is persisted, so a reload keeps the files that already exist
   // instead of pretending they were never generated.
@@ -91,8 +118,17 @@ export function ExportPage() {
   })
 
   const request = useMutation({
-    mutationFn: (input: { kind: 'analysis_report' | 'improved_resume'; format: 'pdf' | 'docx' }) =>
-      createExport({ analysis_id: analysisId as string, kind: input.kind, format: input.format }),
+    mutationFn: (input: {
+      kind: 'analysis_report' | 'improved_resume'
+      format: 'pdf' | 'docx'
+      revision_id?: string | null
+    }) =>
+      createExport({
+        analysis_id: analysisId as string,
+        kind: input.kind,
+        format: input.format,
+        revision_id: input.revision_id ?? null,
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['exports', analysisId] })
     },
@@ -151,10 +187,28 @@ export function ExportPage() {
               Improved resume
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Your newest approved revision, in a single-column layout. Change nothing and it exports
-              the original parse untouched.
+              The version you choose — newest by default — in a single-column layout. Change nothing and
+              it exports the original parse untouched.
             </p>
           </div>
+
+          <label htmlFor="export-version" className="flex flex-col gap-1 text-xs text-muted">
+            Resume version
+            <select
+              id="export-version"
+              value={revisionChoice}
+              onChange={(event) => setRevisionChoice(event.target.value)}
+              className="rounded-xl border border-line bg-void/60 px-3 py-2 text-sm text-ink focus:border-electric"
+            >
+              <option value="">Newest version</option>
+              {versions.map((revision, index) => (
+                <option key={revision.id} value={revision.id}>
+                  v{index}
+                  {revision.label ? ` · ${revision.label}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <fieldset className="flex items-center gap-2">
             <legend className="sr-only">Resume format</legend>
@@ -180,7 +234,13 @@ export function ExportPage() {
             type="button"
             className="btn-primary self-start"
             disabled={request.isPending}
-            onClick={() => request.mutate({ kind: 'improved_resume', format: resumeFormat })}
+            onClick={() =>
+              request.mutate({
+                kind: 'improved_resume',
+                format: resumeFormat,
+                revision_id: revisionChoice || null,
+              })
+            }
           >
             {request.isPending ? 'Generating…' : `Generate resume ${resumeFormat.toUpperCase()}`}
           </button>
@@ -210,7 +270,7 @@ export function ExportPage() {
         {records.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {records.map((record) => (
-              <ExportCard key={record.id} record={record} />
+              <ExportCard key={record.id} record={record} versions={versions} />
             ))}
           </ul>
         ) : null}
