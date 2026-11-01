@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 
 # (canonical, category, aliases)
 _RAW: tuple[tuple[str, str, tuple[str, ...]], ...] = (
@@ -308,6 +309,8 @@ _RAW: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 
 # Ordinary English words that are also skill names. Matching these in prose
 # fabricates skills, so they only count inside an explicit skills list.
+_WHITESPACE_RE = re.compile(r"\s+")
+
 AMBIGUOUS_ALIASES: frozenset[str] = frozenset(
     {"go", "c", "r", "rust", "swift", "spring", "ray", "vault", "looker", "lean", "sales"}
 )
@@ -322,10 +325,16 @@ for _canonical, _category, _aliases in _RAW:
         _ALIAS_INDEX.setdefault(_alias.lower(), _canonical)
 
 
+@lru_cache(maxsize=4096)
 def _normalise_key(name: str) -> str:
-    """Fold case, punctuation runs and whitespace so lookups are forgiving."""
+    """Fold case, punctuation runs and whitespace so lookups are forgiving.
+
+    Cached because every skill mention and every canonicalisation pass calls it,
+    and the same handful of strings recur constantly within one document. The
+    cache is bounded so a long-running process cannot grow it without limit.
+    """
     key = name.strip().lower()
-    key = re.sub(r"\s+", " ", key)
+    key = _WHITESPACE_RE.sub(" ", key)
     key = key.strip(" .,;:•-–—|/()[]{}")
     return key
 
@@ -376,10 +385,10 @@ def find_skills(text: str, *, include_ambiguous: bool = False) -> list[str]:
     seen: set[str] = set()
 
     for match in _PATTERN.finditer(text):
-        matched_text = match.group(0)
-        if not include_ambiguous and _normalise_key(matched_text) in AMBIGUOUS_ALIASES:
+        key = _normalise_key(match.group(0))
+        if not include_ambiguous and key in AMBIGUOUS_ALIASES:
             continue
-        canonical = _ALIAS_INDEX.get(_normalise_key(matched_text))
+        canonical = _ALIAS_INDEX.get(key)
         if canonical is None or canonical in seen:
             continue
         seen.add(canonical)
@@ -421,10 +430,10 @@ def match_skills_with_spans(text: str, *, include_ambiguous: bool = False) -> li
     seen: set[str] = set()
 
     for match in _PATTERN.finditer(text):
-        matched_text = match.group(0)
-        if not include_ambiguous and _normalise_key(matched_text) in AMBIGUOUS_ALIASES:
+        key = _normalise_key(match.group(0))
+        if not include_ambiguous and key in AMBIGUOUS_ALIASES:
             continue
-        canonical = _ALIAS_INDEX.get(_normalise_key(matched_text))
+        canonical = _ALIAS_INDEX.get(key)
         if canonical is None or canonical in seen:
             continue
         seen.add(canonical)

@@ -6,10 +6,10 @@
 
 **AI Resume Intelligence — explainable scoring, ATS compatibility, job matching, and edits you approve.**
 
-[![Tests](https://img.shields.io/badge/tests-144%20backend%20·%2011%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![Tests](https://img.shields.io/badge/tests-150%20backend%20·%2011%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
 [![API](https://img.shields.io/badge/API-32%20operations-22D3EE?style=flat-square)](docs/API.md)
 [![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
-[![Licence](https://img.shields.io/badge/licence-MIT-9AA3C7?style=flat-square)](LICENSE)
+[![Licence](https://img.shields.io/badge/licence-proprietary-9AA3C7?style=flat-square)](LICENSE)
 
 </div>
 
@@ -195,23 +195,42 @@ The original parse is **revision 0** and is never overwritten. An edit is a new 
 
 | Stage | p50 | p95 / max |
 |:--|--:|--:|
-| Upload + parse | 26.6 ms | — |
-| Analysis (parse → score → ATS → findings) | 22.1 ms | 26.3 ms |
-| Recommendations | 38.7 ms | — |
-| Job match | 17.6 ms | — |
-| PDF export | 87.2 ms | 107.7 ms |
+| Upload + parse | 19.7 ms | — |
+| Analysis (parse → score → ATS → findings) | 14.5 ms | 16.7 ms |
+| Recommendations | 30.1 ms | — |
+| Job match | 16.8 ms | — |
+| PDF export | 54.5 ms | 64.9 ms |
 
-20 runs each, single user, no caching layer. Latency grows under concurrency, so here is the concurrent measurement too — `scripts/load_test.py`, 8 clients, 200 analyses, limiter disabled so the run measures the engines rather than the throttle:
+30 runs each, single user. These are **request** latencies, not engine cost: authentication, JSON, PostgreSQL and HTTP are in the same number, and they move by tens of percent between runs on a shared machine — one earlier run of the same script put analysis at 25.4 ms. The controlled measurement is the engine profile below.
+
+Under concurrency — `scripts/load_test.py`, 8 clients, 200 analyses, limiter disabled so the run measures the engines rather than the throttle:
 
 | Metric | Value |
 |:--|--:|
 | Analyses completed | **200 / 200** (0 failed) |
-| Wall time | 2.59 s |
-| Throughput | **77.4 analyses/s** |
-| Latency p50 / p95 / p99 | **72.3 / 142.8 / 155.8 ms** |
-| Slowest | 164.9 ms |
+| Wall time | 3.67 s |
+| Throughput | **54.6 analyses/s** |
+| Latency p50 / p95 / p99 | **99.1 / 197.0 / 228.6 ms** |
+| Slowest | 251.5 ms |
 
-One host, one API process, one local PostgreSQL. It bounds the engine's cost and is not a capacity plan. Raw figures in [`assets/readme/load.json`](assets/readme/load.json).
+One host, one API process, one local PostgreSQL. The same run measured 77.4 analyses/s earlier in the project on this machine, so the figure is a property of the host and its database state as much as of the code: it bounds cost, and it is not a capacity plan. Raw figures in [`assets/readme/load.json`](assets/readme/load.json).
+
+### Engine cost, before and after the profile
+
+`scripts/profile_engine.py` times the deterministic pipeline with no HTTP and no database, and it is what the last round of optimisation was based on. It found two shapes worth fixing: the heading keyword table was re-sorted **for every line** parsed, and the resume body was re-read **for every required skill** matched.
+
+| Stage (p50, same host, same script) | Before | After | Change |
+|:--|--:|--:|--:|
+| Parse | 2.92 ms | **0.77 ms** | **3.8× faster** |
+| Score | 1.30 ms | **0.37 ms** | 3.5× |
+| Parse + score | 4.57 ms | **1.22 ms** | 3.7× |
+| Job match, 12 requirements | 0.69 ms | **0.06 ms** | 11.5× |
+| Job match, 40 requirements | 3.10 ms | **0.40 ms** | 7.8× |
+| Full pipeline | 6.17 ms | **1.61 ms** | 3.8× |
+
+Parsing is now linear in document size: 1.49 ms/KB at 0.8 KB and 1.05 ms/KB at 6.7 KB, where the old shape drifted upward as the text grew. The remaining hot spot is date normalisation, not the parser.
+
+No behaviour changed with the speed. The 150-test suite, including score reconciliation and the calibration harness, produced identical scores before and after.
 
 ---
 
@@ -312,7 +331,7 @@ Full detail, including what is deliberately not implemented yet, is in [`docs/SE
 ## Testing
 
 ```bash
-cd backend && pytest -q          # 144 tests, no database or network required
+cd backend && pytest -q          # 150 tests, no database or network required
 cd frontend && npm run build     # strict typecheck + production build
 cd frontend && npm run e2e       # 11 browser tests against a live stack
 ```
@@ -332,7 +351,7 @@ Stated here rather than discovered later:
 - **No LLM in the request path.** Recommendations are rules; the provider seam exists and validates any rewrite before use.
 - **No OCR engine installed.** Scanned PDFs are detected and reported as `partial` with `ocr_not_performed` rather than silently scored on bad text.
 - **No malware scanning** on uploads; no email verification flow.
-- **Throughput is single-node.** The load run is 200 analyses over 8 clients against one API process; multi-process and multi-host scaling are unmeasured.
+- **Throughput is single-node and host-dependent.** The load run is 200 analyses over 8 clients against one API process; the same run has measured 54.6 and 77.4 analyses/s on this machine at different times, so no throughput claim is made. Multi-process and multi-host scaling are unmeasured.
 - **Comparison covers summary, skills, experience bullets, projects and education.** Certifications, achievements and leadership lines are carried in every version and exported, but are not diffed field by field.
 - **Registration is limited to 5 per 15 minutes per identity**, which a shared office IP can reach. The browser suite seeds once for that reason.
 
@@ -355,6 +374,6 @@ Stated here rather than discovered later:
 <div align="center">
 
 **POTENCIA** · AI Resume Intelligence
-Built by [Arghya Bose](https://github.com/tdzoro) · MIT licensed
+Built by [Arghya Bose](https://github.com/tdzoro) · © 2026 POTENCIA Team · All rights reserved
 
 </div>

@@ -8,6 +8,7 @@ an unrelated context is not counted as a match.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import date
 
 from app.intelligence.taxonomy import canonicalise
@@ -92,34 +93,61 @@ def demonstrated_years(structure: ResumeStructure) -> float | None:
     return round(total, 1)
 
 
-def _evidence_for(skill: str, structure: ResumeStructure) -> list[str]:
+@dataclass(frozen=True)
+class _ResumeView:
+    """The resume, prepared once per match.
+
+    Every per-skill lookup used to rebuild the canonical skill sets, re-read the
+    whole body and re-join every role and project. That made a match quadratic
+    in the number of requirements — a 40-skill description read the resume 40
+    times. Prepared once, the match is linear in requirements.
+    """
+
+    explicit: frozenset[str | None]
+    inferred: frozenset[str | None]
+    prose: str
+    roles: tuple[str, ...]
+    projects: tuple[str, ...]
+
+
+def _view(structure: ResumeStructure) -> _ResumeView:
+    return _ResumeView(
+        explicit=frozenset(canonicalise(item) for item in structure.skills.explicit),
+        inferred=frozenset(canonicalise(item.name) for item in structure.skills.inferred),
+        prose=structure.substantiated_text().lower(),
+        roles=tuple(
+            " ".join(
+                filter(None, [role.title, role.organisation, *(b.text for b in role.bullets)])
+            ).lower()
+            for role in structure.experience
+        ),
+        projects=tuple(
+            " ".join(filter(None, [project.name, project.description, *(b.text for b in project.bullets)])).lower()
+            for project in structure.projects
+        ),
+    )
+
+
+def _evidence_for(skill: str, view: _ResumeView) -> list[str]:
     locations: list[str] = []
-    if canonicalise(skill) in {canonicalise(s) for s in structure.skills.explicit}:
+    if canonicalise(skill) in view.explicit:
         locations.append("skills.explicit")
-    for index, role in enumerate(structure.experience):
-        haystack = " ".join(
-            filter(
-                None,
-                [role.title, role.organisation, *(bullet.text for bullet in role.bullets)],
-            )
-        ).lower()
-        if skill.lower() in haystack:
+    needle = skill.lower()
+    for index, haystack in enumerate(view.roles):
+        if needle in haystack:
             locations.append(f"experience[{index}]")
-    for index, project in enumerate(structure.projects):
-        haystack = " ".join(
-            filter(None, [project.name, project.description, *(b.text for b in project.bullets)])
-        ).lower()
-        if skill.lower() in haystack:
+    for index, haystack in enumerate(view.projects):
+        if needle in haystack:
             locations.append(f"projects[{index}]")
     return locations
 
 
-def _match_skill(skill: str, structure: ResumeStructure) -> SkillMatch:
-    explicit = {canonicalise(item) for item in structure.skills.explicit}
-    inferred = {canonicalise(item.name) for item in structure.skills.inferred}
-    prose = structure.substantiated_text().lower()
+def _match_skill(skill: str, view: _ResumeView) -> SkillMatch:
+    explicit = view.explicit
+    inferred = view.inferred
+    prose = view.prose
     canonical = canonicalise(skill)
-    evidence = _evidence_for(skill, structure)
+    evidence = _evidence_for(skill, view)
 
     if canonical in explicit and skill.lower() in prose:
         return SkillMatch(
@@ -180,10 +208,10 @@ def _education_match(required: str | None, structure: ResumeStructure) -> Educat
     return EducationRequirement(required=required, status=status)
 
 
-def _responsibility_match(lines: list[str], structure: ResumeStructure) -> list[ResponsibilityMatch]:
+def _responsibility_match(lines: list[str], view: _ResumeView) -> list[ResponsibilityMatch]:
     prose_tokens = {
         token
-        for token in re.findall(r"[a-z]{4,}", structure.substantiated_text().lower())
+        for token in re.findall(r"[a-z]{4,}", view.prose)
         if token not in _STOPWORDS
     }
     results: list[ResponsibilityMatch] = []
@@ -202,8 +230,9 @@ def _responsibility_match(lines: list[str], structure: ResumeStructure) -> list[
 
 
 def match_resume(structure: ResumeStructure, requirements: JobRequirements) -> JobMatch:
-    required = [_match_skill(skill, structure) for skill in requirements.required_skills]
-    preferred = [_match_skill(skill, structure) for skill in requirements.preferred_skills]
+    view = _view(structure)
+    required = [_match_skill(skill, view) for skill in requirements.required_skills]
+    preferred = [_match_skill(skill, view) for skill in requirements.preferred_skills]
 
     demonstrated = demonstrated_years(structure)
     if requirements.min_years is None:
@@ -222,7 +251,7 @@ def match_resume(structure: ResumeStructure, requirements: JobRequirements) -> J
         )
 
     education = _education_match(requirements.degree_level, structure)
-    responsibilities = _responsibility_match(requirements.responsibilities, structure)
+    responsibilities = _responsibility_match(requirements.responsibilities, view)
 
     contributions: list[tuple[float, float]] = []
     required_score = _skill_score(required)

@@ -48,6 +48,8 @@ Nothing was assumed from the workflow document. The findings below describe the 
 
 Standard MIT text. **Copyright (c) 2026 MIM** — note the holder is `MIM`, while the repository owner is `tdzoro`. This is not an error to fix unilaterally (licence attribution is a legal decision), but it should be confirmed before the project is presented publicly or distributed.
 
+**Resolved.** The holder confirmed the licence in Phase 19: the MIT text was replaced by an all-rights-reserved proprietary licence held by the POTENCIA Team. See [`LICENSE`](../LICENSE).
+
 ### 2.2 `README.md`
 
 Two lines, 54 bytes:
@@ -117,7 +119,7 @@ Host capability, verified rather than assumed:
 | TD-3 | No `.env.example` — onboarding is undocumented and secrets handling is undefined | High | Phase 2 |
 | TD-4 | No `Dockerfile` / `docker-compose.yml`, so there is no reproducible environment | Medium | Phase 2 |
 | TD-5 | No CI, so no automated gate exists to detect a regression | Medium | Phase 2 |
-| TD-6 | Licence holder (`MIM`) does not match repository owner (`tdzoro`) | Medium (legal, not technical) | Owner decision — not changed by the auditor |
+| TD-6 | Licence holder (`MIM`) does not match repository owner (`tdzoro`) | Medium (legal, not technical) | **Resolved** in Phase 19 — proprietary licence held by the POTENCIA Team |
 | TD-7 | No `CONTRIBUTING.md` / commit convention — contributor drift is likely on a shared repository | Low | Phase 2 |
 | TD-8 | Brand assets absent from the repository | Medium | **Resolved** in this phase (§8.1) |
 

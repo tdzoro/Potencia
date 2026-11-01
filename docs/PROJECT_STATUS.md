@@ -1,7 +1,7 @@
 # Project status
 
 **Last updated:** 1 November 2026
-**Current phase:** 18 complete — version selection and full-field comparison
+**Current phase:** 19 complete — proprietary licence and a profiled, faster engine
 **Methodology version:** 1.0.0
 
 ---
@@ -51,10 +51,10 @@ PDF report, PDF and DOCX resume, signed 15-minute URLs, files re-opened by a par
 Rate limiting through a pluggable store (memory or Redis), security headers, signed downloads, streaming upload caps, ownership checks, secret management, retention sweep. **PASS**, with `KI-4` and `KI-5` open.
 
 ### Phase 14 — QA
-144 backend tests, hermetic. Migration round-trip in CI against PostgreSQL 16. **PASS.**
+150 backend tests, hermetic. Migration round-trip in CI against PostgreSQL 16. **PASS.**
 
 ### Phase 15 — Performance
-Measured: analysis p50 **22.1 ms**, p95 **26.3 ms**; export p50 **87.2 ms** on a local PostgreSQL container. Concurrent run through `scripts/load_test.py`: 200 analyses across 8 clients in 2.59 s — **77.4 analyses/s**, p50 **72.3 ms**, p95 **142.8 ms**, p99 **155.8 ms**, 0 failures. **PASS** at single-node scale.
+Measured: analysis p50 **14.5 ms**, p95 **16.7 ms**; export p50 **54.5 ms** on a local PostgreSQL container. Concurrent run through `scripts/load_test.py`: 200 analyses across 8 clients in 3.67 s — **54.6 analyses/s**, p50 **99.1 ms**, p95 **197.0 ms**, p99 **228.6 ms**, 0 failures. The same run measured 77.4 analyses/s earlier in the project on this host, so the concurrent figure is not treated as a claim. **PASS** at single-node scale.
 
 ### Phase 16 — Deployment
 Dockerfiles (non-root API, nginx static web), compose stack with health checks, GitHub Actions running tests, migration round-trip, frontend build, and the browser journey. **PASS.**
@@ -82,6 +82,25 @@ Every claim in `API.md` that had no implementation behind it is now implemented 
 - **Any version can be exported.** `POST /exports` accepts an optional `revision_id` (migration `0005_export_revision`, `exports.revision_id`, `ON DELETE SET NULL`). A version from another resume or account is `404` and queues nothing; `analysis_report` + `revision_id` is `422`. The export screen has a version picker and the history names the version it rendered. Omitting the field preserves the old default — the newest.
 - **The diff covers what the studio edits.** `_flatten` now includes projects (name, description, technologies, bullets) and education (institution, degree, field, detail lines) alongside the summary, explicit skills and experience bullets. Those fields are editable in the studio, so the comparison can no longer ignore a change the user actually made.
 - **Studio parity.** Projects and education became editable — name, description, technologies, bullets; institution, degree, field, detail lines — and the unsaved-change counter recognises them, so the save button is not disabled while a project edit is pending.
+
+**PASS.**
+
+### Phase 19 — Proprietary licence and engine efficiency
+
+**Licence.** The MIT text was replaced by an all-rights-reserved proprietary licence held by the POTENCIA Team, at the holder's instruction; the README badge, footer and npm manifest were updated with it, and `TD-6` in the repository audit is marked resolved. GitHub will re-detect the licence on the next push.
+
+**Efficiency, measured before it was changed.** `scripts/profile_engine.py` times each deterministic stage and sweeps document size and requirement count, so a change is justified by a number rather than an adjective. It found two quadratic-ish shapes:
+
+| Fault | Evidence | Fix |
+|:--|:--|:--|
+| Heading keyword table re-sorted per line | ~40% of parse time in a single profile | Ordered once at import, and bucketed by first word so a line tests a handful of candidates, not ninety |
+| Resume body re-read per required skill | 40-skill match read the document 40 times | One `_ResumeView` per match: canonical sets, prose and per-role haystacks prepared once |
+| Skill normalisation uncached | 4.8 ms per corpus in `_normalise_key` | Bounded `lru_cache`, and one normalisation per match instead of two |
+| Quadratic duplicate-skill count, repeated verb extraction | `list.count` in a loop; `lead_verb` called twice per bullet | `Counter`; the lead verbs are computed once and zipped |
+
+Result, same host and same script: parse **2.92 → 0.77 ms**, score **1.30 → 0.37 ms**, job match **0.69 → 0.06 ms** (11.5×), full pipeline **6.17 → 1.61 ms** (3.8×), 40-requirement match **3.10 → 0.40 ms**. Parsing is now flat per kilobyte across an 8× size range.
+
+Six guardrail tests make the regression catchable rather than remembering it: heading ordering, a classification budget, one document read per match, a 40-requirement budget, an eight-document parse budget, and a cache-hit assertion. Scores are unchanged — the suite and the calibration harness produce the same numbers.
 
 **PASS.**
 

@@ -8,7 +8,9 @@ of keywords. A low SK-04 produces "substantiate or remove" advice, never
 from __future__ import annotations
 
 import re
+from collections import Counter
 from datetime import datetime, timezone
+from functools import lru_cache
 
 from app.intelligence.scoring.aggregate import clamp, make_finding, make_result, not_applicable
 from app.intelligence.scoring.experience import parse_year_month
@@ -52,8 +54,18 @@ CLUSTERS: dict[str, frozenset[str]] = {
 _RECENT_YEARS = 5
 
 
+_WHITESPACE_RE = re.compile(r"\s+")
+
+
+@lru_cache(maxsize=2048)
+def _fold(name: str) -> str:
+    """Case- and whitespace-folded skill name. Cached: the same skills are
+    normalised repeatedly across SK-02 through SK-05 for one document."""
+    return _WHITESPACE_RE.sub(" ", name.strip().lower())
+
+
 def canonical(name: str) -> str:
-    cleaned = re.sub(r"\s+", " ", name.strip().lower())
+    cleaned = _fold(name)
     return ALIASES.get(cleaned, cleaned)
 
 
@@ -163,7 +175,10 @@ def _sk03(explicit: list[str]) -> CriterionResult:
         return not_applicable("SK-03", "no explicit skill list to check for duplicates")
 
     canonicals = [canonical(skill) for skill in explicit]
-    duplicates = sorted({skill for skill in canonicals if canonicals.count(skill) > 1})
+    # One pass. Counting each entry against the whole list is quadratic, and this
+    # runs on every analysis.
+    counts = Counter(canonicals)
+    duplicates = sorted(skill for skill, count in counts.items() if count > 1)
     subscore = clamp(1.0 - 0.15 * len(duplicates))
     evidence = [Evidence(section="skills", text=", ".join(duplicates))] if duplicates else _evidence(explicit)
 

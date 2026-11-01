@@ -3,7 +3,7 @@
 ## Running the suites
 
 ```bash
-cd backend && pytest -q          # 144 tests, hermetic
+cd backend && pytest -q          # 150 tests, hermetic
 cd frontend && npm run build     # strict typecheck + production build
 cd frontend && npm run e2e       # 11 browser tests, needs a live stack
 ```
@@ -29,6 +29,7 @@ The backend suite needs no PostgreSQL, no network and no AI provider: it runs on
 | Pagination | `test_pagination.py` | Pages walk without gaps or repeats, newest first, malformed cursor is `422` |
 | Rate-limit store | `test_ratelimit_store.py` | Middleware honours an injected store, in-memory window, Redis `INCR`+`EXPIRE NX` semantics, unreachable Redis degrades |
 | Calibration | `test_calibration.py` | Spearman on monotone and tied data, applicability-aware totals, normalisation |
+| Performance | `test_performance.py` | Heading table ordered once at import, 1,400 classifications inside a loose budget, one document read per match (not one per requirement), 40-requirement match inside budget, eight-document parse inside budget, normalisation actually cached |
 | Versions | `test_versions.py` | Labels stored and returned, unlabelled stays null, malformed `parent_id` is `422` not `500`, over-length label rejected, field-level comparison including projects and education, identical versions report no changes, cross-resume and cross-account comparison is `404` |
 | Retention | `test_retention.py` | Expired file and row both removed, download link stops serving, unexpired export survives, an expired row without bytes still goes |
 

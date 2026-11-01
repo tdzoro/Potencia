@@ -195,7 +195,13 @@ def _cq04_verbs(bullets: list[Bullet]) -> CriterionResult:
 
     leads = [lead_verb(bullet.text) for bullet in bullets]
     variety = clamp(len({lead for lead in leads if lead}) / len(bullets))
-    weak = [(index, bullet) for index, bullet in enumerate(bullets) if lead_verb(bullet.text) in WEAK_VERBS]
+    # `lead_verb` already ran once above; re-extracting it here doubled the work
+    # for every bullet in the document.
+    weak = [
+        (index, bullet)
+        for index, (bullet, lead) in enumerate(zip(bullets, leads, strict=True))
+        if lead in WEAK_VERBS
+    ]
     subscore = clamp(variety * (1.0 - 0.1 * min(len(weak), 5)))
 
     evidence = [

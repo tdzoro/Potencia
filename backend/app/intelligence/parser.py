@@ -138,6 +138,25 @@ for _kind, _keywords in _SECTION_KEYWORDS.items():
     for _keyword in _keywords:
         _HEADING_LOOKUP[_keyword] = _kind
 
+# Longest keyword first, computed once at import. Re-sorting this on every line
+# was the single largest cost in the parser: a profile of one document showed it
+# at roughly 40% of parse time, for an ordering that never changes.
+_HEADING_PREFIXES: tuple[tuple[str, str], ...] = tuple(
+    sorted(_HEADING_LOOKUP.items(), key=lambda item: len(item[0]), reverse=True)
+)
+
+# ...and bucketed by its first word, so classifying a line tests the handful of
+# headings that could possibly match instead of all ninety. Buckets keep the
+# longest-first order, which is what lets "React Native" beat "React".
+_heading_buckets: dict[str, list[tuple[str, str]]] = {}
+for _keyword, _kind in _HEADING_PREFIXES:
+    _heading_buckets.setdefault(_keyword.split(" ", 1)[0], []).append((_keyword, _kind))
+_HEADING_BY_FIRST_WORD: dict[str, tuple[tuple[str, str], ...]] = {
+    _word: tuple(_entries) for _word, _entries in _heading_buckets.items()
+}
+
+_WHITESPACE_RE = re.compile(r"\s+")
+
 # Words that may follow a heading keyword without making it prose.
 _HEADING_MODIFIERS: frozenset[str] = frozenset(
     {
@@ -184,14 +203,14 @@ def classify_heading(line: str) -> str | None:
     if not text or len(text) > 60:
         return None
 
-    key = re.sub(r"\s+", " ", text.lower()).strip(" :;|•–—-")
+    key = _WHITESPACE_RE.sub(" ", text.lower()).strip(" :;|•–—-")
     if key in _HEADING_LOOKUP:
         return _HEADING_LOOKUP[key]
 
     # "WORK EXPERIENCE & INTERNSHIPS" — a known heading plus recognised
     # modifiers. Anything else after the keyword is prose, not a heading:
     # "Experience with Python and Django" must not open a section.
-    for keyword, kind in sorted(_HEADING_LOOKUP.items(), key=lambda item: len(item[0]), reverse=True):
+    for keyword, kind in _HEADING_BY_FIRST_WORD.get(key.split(" ", 1)[0], ()):
         if not key.startswith(keyword):
             continue
         suffix = key[len(keyword) :].replace("&", " and ")
