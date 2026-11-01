@@ -4,6 +4,8 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import { ErrorNotice } from '../components/States'
 import { useAuth } from '../context/AuthContext'
+import { ApiError } from '../services/api'
+import { resendVerification } from '../services/auth'
 
 export function LoginPage() {
   const { status, login } = useAuth()
@@ -13,6 +15,8 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<unknown>(null)
   const [pending, setPending] = useState(false)
+  const [resendPending, setResendPending] = useState(false)
+  const [resendNotice, setResendNotice] = useState<string | null>(null)
 
   if (status === 'authenticated') {
     return <Navigate to="/app" replace />
@@ -30,6 +34,20 @@ export function LoginPage() {
       setError(caught)
     } finally {
       setPending(false)
+    }
+  }
+
+  async function handleResend(): Promise<void> {
+    if (!email.trim()) return
+    setResendPending(true)
+    setResendNotice(null)
+    try {
+      const res = await resendVerification(email.trim())
+      setResendNotice(res.message || 'Verification email resent! Please check your inbox.')
+    } catch {
+      setResendNotice('If an account exists for that address, a new verification link has been sent.')
+    } finally {
+      setResendPending(false)
     }
   }
 
@@ -60,6 +78,7 @@ export function LoginPage() {
             <label htmlFor="email" className="text-sm font-medium text-ink">
               Email
             </label>
+
             <input
               id="email"
               name="email"
@@ -74,9 +93,16 @@ export function LoginPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-ink">
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="text-sm font-medium text-ink">Password</label>
+  
+
+              <Link to="/forgot-password" className="text-xs font-medium text-electric hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+
+
             <input
               id="password"
               name="password"
@@ -90,7 +116,34 @@ export function LoginPage() {
             />
           </div>
 
-          {error ? <ErrorNotice error={error} title="Could not sign in" /> : null}
+          {error instanceof ApiError && error.code === 'email_unverified' ? (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-ink">
+              <div className="flex items-start gap-3">
+                <svg className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-ink">Email verification required</h4>
+                  <p className="mt-1 text-xs text-muted">
+                    Your account email has not been verified yet. Check your inbox for the link we sent, or resend it below.
+                  </p>
+                  {resendNotice ? (
+                    <p className="mt-2 text-xs text-electric">{resendNotice}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void handleResend()}
+                    disabled={resendPending || !email.trim()}
+                    className="mt-3 text-xs font-semibold text-electric hover:underline disabled:opacity-50"
+                  >
+                    {resendPending ? 'Sending link…' : 'Resend verification email'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : error ? (
+            <ErrorNotice error={error} title="Could not sign in" />
+          ) : null}
 
           <button type="submit" className="btn-primary w-full" disabled={pending}>
             {pending ? 'Signing in…' : 'Sign in'}

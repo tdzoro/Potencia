@@ -117,7 +117,21 @@ Exposes modular OCR routines (`ocr_pdf`, `ocr_image`, `preprocess_image`, `deske
 
 Upload processing executes an atomic 12-step sequence: streaming upload limits (5 MiB), filename sanitization, signature and magic byte checking (`%PDF-`, `PK`), PDF structure inspection (page count <= 50, encryption rejection, attachment safety), DOCX archive inspection (entries <= 1000, no path traversal in entries, compression ratio <= 100:1, macro rejection), ClamAV malware scan (fail-closed in production), content-addressed storage (`0o600` permissions), text extraction, and cleanup upon post-storage failures.
 
-### 3.8 `core/` — cross-cutting
+### 3.8 `services/email_service.py` & Authentication Security
+
+| | |
+|:--|:--|
+| **Responsibility** | Dual-mode outbound email dispatch (SMTP + in-memory test queue), branded responsive HTML email templating, verification & recovery token delivery |
+| **Owns** | SMTP connection management over SSL/TLS, fallback queue `_SENT_EMAILS`, email layouts |
+| **Never does** | Persist raw tokens, log credentials or tokens, crash user requests on transient SMTP outages |
+| **May import** | `core` |
+
+The authentication lifecycle incorporates:
+- **Registration**: Issues credentials, records user as unverified, generates a cryptographically random 32-byte verification token (`secrets.token_urlsafe(32)`), persists its SHA-256 digest in `auth_tokens`, and dispatches a verification email.
+- **Verification (`/api/v1/auth/verify-email`)**: Hashes the token, looks up unconsumed, unexpired token, marks user `email_verified=True`, consumes the token (`used_at`), and invalidates previous pending tokens.
+- **Password Recovery (`/api/v1/auth/forgot-password` & `/reset-password`)**: Generic anti-enumeration response on forgot-password, one-time hashed token with 60-minute expiry, password update with minimum 12 characters, and `token_version` increment revoking all existing refresh tokens.
+
+### 3.9 `core/` — cross-cutting
 
 | | |
 |:--|:--|
@@ -304,6 +318,7 @@ erDiagram
     USER ||--o{ RESUME : owns
     USER ||--o{ JOB : owns
     USER ||--o{ REFRESH_TOKEN : holds
+    USER ||--o{ AUTH_TOKEN : issues
     RESUME ||--o{ RESUME_REVISION : has
     RESUME ||--o{ ANALYSIS : analysed_by
     RESUME ||--o{ MATCH : matched_in
@@ -319,6 +334,15 @@ erDiagram
         string password_hash
         string display_name
         boolean email_verified
+        datetime created_at
+    }
+    AUTH_TOKEN {
+        uuid id PK
+        uuid user_id FK
+        string token_hash UK
+        string token_type
+        datetime expires_at
+        datetime used_at
         datetime created_at
     }
     RESUME {

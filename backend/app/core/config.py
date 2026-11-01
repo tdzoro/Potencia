@@ -88,6 +88,45 @@ class Settings(BaseSettings):
     ocr_min_confidence: float = 40.0
     ocr_deskew_enabled: bool = True
 
+    # SMTP & Email Delivery Configuration
+    smtp_host: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SMTP_HOST", "POTENCIA_SMTP_HOST"),
+    )
+    smtp_port: int = Field(
+        default=587,
+        validation_alias=AliasChoices("SMTP_PORT", "POTENCIA_SMTP_PORT"),
+    )
+    smtp_username: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SMTP_USERNAME", "POTENCIA_SMTP_USERNAME"),
+    )
+    smtp_password: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SMTP_PASSWORD", "POTENCIA_SMTP_PASSWORD"),
+    )
+    smtp_from_email: str = Field(
+        default="noreply@potencia.ai",
+        validation_alias=AliasChoices("SMTP_FROM_EMAIL", "POTENCIA_SMTP_FROM_EMAIL"),
+    )
+    smtp_from_name: str = Field(
+        default="POTENCIA Resume Intelligence",
+        validation_alias=AliasChoices("SMTP_FROM_NAME", "POTENCIA_SMTP_FROM_NAME"),
+    )
+    smtp_use_tls: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("SMTP_USE_TLS", "POTENCIA_SMTP_USE_TLS"),
+    )
+    frontend_url: str = Field(
+        default="http://localhost:5173",
+        validation_alias=AliasChoices("FRONTEND_URL", "POTENCIA_FRONTEND_URL"),
+    )
+
+    # Email Verification & Password Recovery Policy
+    email_verification_required: bool = False
+    verification_token_expire_hours: int = 24
+    password_reset_token_expire_minutes: int = 60
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Allowed browser origins, comma-separated in one env var."""

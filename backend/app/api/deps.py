@@ -15,6 +15,7 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.errors import PotenciaError
 from app.core.security import decode_token
@@ -32,10 +33,11 @@ def _unauthenticated() -> PotenciaError:
     return PotenciaError("unauthenticated", 401, _UNAUTHENTICATED_MESSAGE)
 
 
-def get_current_user(
+def get_current_user_any(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     session: Session = Depends(get_db),
 ) -> User:
+    """Return the authenticated user, without checking email verification status."""
     if credentials is None or not credentials.credentials:
         raise _unauthenticated()
 
@@ -48,5 +50,24 @@ def get_current_user(
     user = users_repo.get_active_by_id(session, user_id)
     if user is None:
         raise _unauthenticated()
+
+    return user
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    session: Session = Depends(get_db),
+) -> User:
+    """Return the authenticated user, enforcing email verification if configured."""
+    user = get_current_user_any(credentials, session)
+
+    settings = get_settings()
+    if settings.email_verification_required and not user.email_verified:
+        raise PotenciaError(
+            "email_unverified",
+            403,
+            "Please verify your email address to access this resource.",
+            [{"field": "email", "issue": "unverified"}],
+        )
 
     return user

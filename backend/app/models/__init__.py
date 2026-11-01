@@ -9,6 +9,7 @@ silently never gets created.
 from __future__ import annotations
 
 from app.models.analysis import Analysis, Export, Match, Recommendation
+from app.models.auth_token import AuthToken, AuthTokenType
 from app.models.base import Base
 from app.models.content import Job, Resume, ResumeRevision
 from app.models.idempotency import IdempotencyKey
@@ -16,6 +17,8 @@ from app.models.user import User
 
 __all__ = [
     "Analysis",
+    "AuthToken",
+    "AuthTokenType",
     "Base",
     "Export",
     "IdempotencyKey",

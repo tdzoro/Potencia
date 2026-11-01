@@ -7,13 +7,40 @@ POTENCIA processes documents that contain a person's full contact details, emplo
 | Control | Implementation |
 |:--|:--|
 | Password storage | bcrypt, per-password salt, cost factor from the library default |
-| Password policy | 12 characters minimum, enforced on registration only |
+| Password policy | 12 characters minimum, enforced on registration and password reset |
 | Access token | JWT, HS256, 15-minute lifetime, `type: access` claim |
 | Refresh token | JWT, 14-day lifetime, bound to a per-account `token_version` |
-| Revocation | Logout bumps `token_version`, invalidating every refresh token for the account |
-| Enumeration defence | Unknown emails still run a bcrypt comparison against a cached dummy hash, and both failure paths return an identical `401` |
+| Revocation | Logout and password reset bump `token_version`, instantly invalidating every refresh token for the account |
+| Enumeration defence | Constant-time execution: login failure returns identical `401`; forgot-password and resend-verification return identical `200` generic success notices |
+| Email verification | 24-hour cryptographically secure random token (`secrets.token_urlsafe(32)`), stored strictly as SHA-256 hash |
+| Password recovery | 60-minute cryptographically secure random token, stored strictly as SHA-256 hash, single-use enforcement |
 
 Tokens are signed with `POTENCIA_SECRET_KEY`. The application **refuses to start** with `POTENCIA_ENVIRONMENT=production` and the development placeholder secret.
+
+## Email Verification & Password Recovery
+
+Implemented in Phase 23 to secure account lifecycles and recovery:
+
+### Cryptographic Token Storage
+- **Never store raw tokens:** Registration and password recovery generate 32-byte URL-safe cryptographic tokens (`secrets.token_urlsafe(32)`).
+- **Hashed storage:** Tokens are hashed using SHA-256 (`hashlib.sha256(token.encode()).hexdigest()`) before database insertion into the `auth_tokens` table. Even with full database access, raw tokens cannot be recovered or stolen.
+- **Strict Lifecycles:** Each token specifies `expires_at` (24h for email verification, 60m for password reset) and `used_at`.
+- **Single-Use Enforcement:** Tokens can be consumed exactly once. When consumed or replaced, `used_at` is timestamped and any previously pending tokens of the same type for that user are invalidated.
+
+### Session Revocation on Password Reset
+- Resetting a password updates `user.password_hash` with bcrypt and immediately increments `user.token_version`.
+- Any existing refresh tokens embedding the old `token_version` are instantly rejected on the next refresh attempt (`401 Session Revoked`), evicting any compromised or stale sessions across all devices.
+
+### Anti-Enumeration & Privacy
+- `POST /api/v1/auth/forgot-password` always returns `200 OK` with a generic message (`"If an account exists with that email address, password reset instructions have been sent."`), regardless of whether the email is registered.
+- `POST /api/v1/auth/resend-verification` always returns `200 OK` with a generic message (`"If an unverified account exists for that email, a verification link has been sent."`), whether the account is unverified, already verified, or unregistered.
+- For unregistered accounts, dummy bcrypt timing equalisation ensures requests take equivalent wall-clock time, defeating timing attacks.
+
+### Email Delivery Engine (`app/services/email_service.py`)
+- Standard SMTP transport over TLS/SSL (port 465 or 587) with optional authentication.
+- Responsive, branded HTML + plain text dual MIME formatting.
+- **Fail-Safe Operation:** SMTP connection failures or timeouts are caught, logged without leaking credentials or tokens, and do not crash user requests.
+- **Hermetic Development/Testing:** When `SMTP_HOST` is unset, sent emails are recorded in an in-memory queue (`_SENT_EMAILS`) for unit testing without network dependencies.
 
 ## Authorisation and data isolation
 
@@ -106,7 +133,7 @@ When `GEMINI_API_KEY` is configured, POTENCIA connects to Google Gemini (`gemini
 |:--|:--|:--|
 | LLM scoring | Prohibited | Scores and findings are 100% deterministic rules. An LLM is used only as an optional text rewrite assistant (`app/ai/providers/gemini.py`). |
 | Malware scanning | Integrated (Phase 21) | ClamAV `INSTREAM` protocol integration with fail-closed production guarantees and automated container service in docker-compose. |
-| Email verification | Field exists, flow does not | `users.email_verified` is stored and returned; no mail is sent. |
+| Email verification & recovery | Integrated (Phase 23) | Complete verification and recovery flows via SMTP, cryptographic random tokens hashed with SHA-256 in `auth_tokens`, and `token_version` session revocation. |
 | Audit log | Structured request logging only | Method, path, status and duration are logged with a request id. Resume contents, emails and tokens are never logged. |
 
 ## Incident surface

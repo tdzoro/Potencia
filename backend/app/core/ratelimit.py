@@ -34,6 +34,10 @@ class Limit:
 _RULES: tuple[tuple[str, str, Limit], ...] = (
     ("POST", "/api/v1/auth/login", Limit(5, 900)),
     ("POST", "/api/v1/auth/register", Limit(5, 900)),
+    ("POST", "/api/v1/auth/forgot-password", Limit(5, 900)),
+    ("POST", "/api/v1/auth/reset-password", Limit(5, 900)),
+    ("POST", "/api/v1/auth/resend-verification", Limit(5, 900)),
+    ("POST", "/api/v1/auth/verify-email", Limit(10, 900)),
     ("POST", "/api/v1/resumes", Limit(10)),
     ("POST", "/api/v1/analyses", Limit(20)),
     ("POST", "/api/v1/matches", Limit(20)),
@@ -121,6 +125,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                                 "meta": {
                                     "limit": limit.limit,
                                     "window_seconds": limit.window_seconds,
+                                    "retry_after": retry_after,
                                 },
                             }
                         ],

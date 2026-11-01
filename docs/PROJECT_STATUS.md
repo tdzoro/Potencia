@@ -1,7 +1,7 @@
 # Project status
 
 **Last updated:** 1 November 2026
-**Current phase:** 22 complete — Optical Character Recognition (OCR) for Scanned Resumes (Tesseract OCR, OpenCV Preprocessing, and Scanned Document Detection)
+**Current phase:** 23 complete — Complete Email Verification & Secure Password Recovery
 **Methodology version:** 1.0.0
 
 ---
@@ -126,6 +126,22 @@ Six guardrail tests make the regression catchable rather than remembering it: he
 
 **PASS.**
 
+### Phase 23 — Complete Email Verification & Secure Password Recovery
+**PASS.**
+- **One-time Cryptographic Tokens:** Generated using `secrets.token_urlsafe(32)` with high entropy.
+- **Hashed Database Storage:** Stored strictly as SHA-256 digests in `auth_tokens` table with expiration (`expires_at`) and single-use enforcement (`used_at`). Raw tokens are never persisted to disk or database. Alembic migration `0006_auth_tokens.py`.
+- **Complete Email Verification Flow:** Verification tokens dispatched automatically on registration; validated via `POST /api/v1/auth/verify-email`, resendable via `POST /api/v1/auth/resend-verification`. Configurable enforcement (`POTENCIA_EMAIL_VERIFICATION_REQUIRED`) on sign-in and protected endpoints.
+- **Secure Password Recovery:** `POST /api/v1/auth/forgot-password` and `POST /api/v1/auth/reset-password`. Enforces 12-character minimum passwords, hashes with bcrypt, consumes tokens once, and increments `user.token_version`, immediately revoking all existing active refresh tokens across devices.
+- **Anti-Account Enumeration:** Generic 200 responses and constant-time dummy comparisons returned on forgot-password and resend-verification to prevent discovering registered user emails.
+- **Modular Email Service:** `backend/app/services/email_service.py` provides production SMTP delivery over TLS/SSL and an in-memory queue (`_SENT_EMAILS`) for hermetic testing. Features responsive HTML and plain text templates for verification, reset, password change notification, and welcome.
+- **Rate Limiting:** Added strict rate limit rules to `backend/app/core/ratelimit.py` (5-10 requests per 15 minutes) on all verification and recovery endpoints.
+- **Frontend Integration:** Added `VerifyEmailPage.tsx`, `ForgotPasswordPage.tsx`, and `ResetPasswordPage.tsx`, updated `RegisterPage.tsx`, `LoginPage.tsx`, and `App.tsx` with resend actions and unverified account notices.
+- **Comprehensive Test Suite:** 18 automated tests in `backend/tests/test_verification_and_recovery.py`. Entire test suite of 227 backend tests passes hermetically.
+
+**PASS.**
+
+---
+
 ### Phase 22 — Optical Character Recognition (OCR) for Scanned Resumes
 **PASS.**
 - **Modular OCR engine:** Created `backend/app/document/ocr.py` and `backend/app/services/ocr_service.py` integrating Tesseract OCR via `pytesseract` and PyMuPDF page rasterization.
@@ -171,7 +187,7 @@ Browser journey verified in Chrome: score rendered from the DOM, acceptance pers
 | KI-1 | Weights not empirically validated | Medium | Harness shows the shipped vector is not beaten by alternatives on rubric fixtures; that is a floor, not a study |
 | KI-2 | No LLM provider | Resolved | Optional Google Gemini provider implemented behind the provider seam in Phase 20 |
 | KI-4 | No malware scanning on uploads | Resolved | Integrated ClamAV daemon malware scanning (INSTREAM protocol) with fail-closed production mode and EICAR detection in Phase 21 |
-| KI-5 | No email verification flow | Low | Field stored, no mail sent |
+| KI-5 | No email verification flow | Resolved | Implemented email verification and secure password recovery with SHA-256 hashed tokens and SMTP delivery in Phase 23 |
 | KI-6 | OCR engine not installed | Resolved | Integrated Tesseract OCR and OpenCV preprocessing for scanned resumes in Phase 22 |
 **Resolved in Phase 17:** per-process-only rate limits, missing export history, absent browser automation, unverified click-through of the match view, manual-only retention (now scheduled in compose), multi-version resumes (now labelled with comparison), a `500` on a malformed `parent_id`, and export rows mislabelled with an expiry as a generation time.
 

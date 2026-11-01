@@ -46,3 +46,35 @@ export async function deleteAccount(): Promise<void> {
   await authedRequest<void>('/api/v1/users/me', { method: 'DELETE' })
   clearSession()
 }
+
+export async function verifyEmail(token: string): Promise<{ message: string; email?: string }> {
+  const { body } = await apiFetch<{ message: string; email?: string }>('/api/v1/auth/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  })
+  return body
+}
+
+export async function resendVerification(email: string): Promise<{ message: string }> {
+  const { body } = await apiFetch<{ message: string }>('/api/v1/auth/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+  return body
+}
+
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  const { body } = await apiFetch<{ message: string }>('/api/v1/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+  return body
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  const { body } = await apiFetch<{ message: string }>('/api/v1/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, new_password: newPassword }),
+  })
+  return body
+}

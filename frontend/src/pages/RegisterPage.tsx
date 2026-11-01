@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import { ErrorNotice } from '../components/States'
 import { useAuth } from '../context/AuthContext'
+import { resendVerification } from '../services/auth'
 
 const MIN_PASSWORD_LENGTH = 12
 
@@ -24,8 +25,11 @@ export function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [error, setError] = useState<unknown>(null)
   const [pending, setPending] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
+  const [resendPending, setResendPending] = useState(false)
+  const [resendNotice, setResendNotice] = useState<string | null>(null)
 
-  if (status === 'authenticated') {
+  if (status === 'authenticated' && !registeredEmail) {
     return <Navigate to="/app" replace />
   }
 
@@ -59,12 +63,86 @@ export function RegisterPage() {
     try {
       const name = displayName.trim()
       await register(email.trim(), password, name.length > 0 ? name : undefined)
-      navigate('/app', { replace: true })
+      setRegisteredEmail(email.trim())
     } catch (caught) {
       setError(caught)
     } finally {
       setPending(false)
     }
+  }
+
+  async function handleResend(): Promise<void> {
+    if (!registeredEmail) return
+    setResendPending(true)
+    setResendNotice(null)
+    try {
+      const res = await resendVerification(registeredEmail)
+      setResendNotice(res.message || 'Verification email resent! Please check your inbox.')
+    } catch {
+      setResendNotice('If an account exists for that address, a new verification link has been sent.')
+    } finally {
+      setResendPending(false)
+    }
+  }
+
+  if (registeredEmail) {
+    return (
+      <div className="flex min-h-dvh flex-col">
+        <header className="border-b border-line/70">
+          <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
+            <Link to="/" aria-label="POTENCIA — home" className="rounded-md">
+              <Brand />
+            </Link>
+            <Link to="/login" className="text-sm font-medium text-muted hover:text-ink">
+              Sign in
+            </Link>
+          </div>
+        </header>
+
+        <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-12 sm:px-6">
+          <div className="panel p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400">
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+
+            <h1 className="mt-5 text-2xl font-semibold tracking-tight text-ink">Check your email</h1>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              We sent a verification link to <strong className="text-ink">{registeredEmail}</strong>. Please check your inbox and click the link to verify your account.
+            </p>
+
+            {resendNotice ? (
+              <div className="mt-4 rounded-xl border border-electric/30 bg-electric/10 p-3 text-xs text-electric">
+                {resendNotice}
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => void handleResend()}
+                disabled={resendPending}
+                className="btn-secondary w-full"
+              >
+                {resendPending ? 'Resending email…' : 'Resend verification link'}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/app')}
+                className="btn-primary w-full"
+              >
+                Proceed to Dashboard
+              </button>
+            </div>
+
+            <p className="mt-6 text-xs text-muted">
+              Didn't receive the email? Check your spam folder or wait a couple of minutes before resending.
+            </p>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (

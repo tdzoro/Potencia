@@ -6,8 +6,8 @@
 
 **AI Resume Intelligence — explainable scoring, ATS compatibility, job matching, and edits you approve.**
 
-[![Tests](https://img.shields.io/badge/tests-209%20backend%20·%2011%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
-[![API](https://img.shields.io/badge/API-32%20operations-22D3EE?style=flat-square)](docs/API.md)
+[![Tests](https://img.shields.io/badge/tests-227%20backend%20·%2011%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![API](https://img.shields.io/badge/API-36%20operations-22D3EE?style=flat-square)](docs/API.md)
 [![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
 [![Licence](https://img.shields.io/badge/licence-proprietary-9AA3C7?style=flat-square)](LICENSE)
 
@@ -335,11 +335,11 @@ cd frontend && npm install && npm run dev
 
 ## API surface
 
-32 operations across 24 paths, all under `/api/v1` except health. Full contracts in [`docs/API.md`](docs/API.md).
+36 operations across 28 paths, all under `/api/v1` except health. Full contracts in [`docs/API.md`](docs/API.md).
 
 | Group | Operations |
 |:--|:--|
-| Auth | register · login · refresh · logout · me · delete account |
+| Auth | register · login · refresh · logout · me · delete account · verify email · resend verification · forgot password · reset password |
 | Resumes | upload · list · get · revisions (list, create, compare) · delete |
 | Analyses | create · list · get · report · recommendations · exports · delete |
 | Jobs & matches | create · list · get · delete · match · read |
@@ -352,13 +352,17 @@ cd frontend && npm install && npm run dev
 
 | Control | State |
 |:--|:--|
-| Password hashing | bcrypt, per-password salt |
-| Tokens | 15-min access JWT, 14-day refresh, revoked by `token_version` |
-| Account enumeration | Identical `401` for unknown email and wrong password |
+| Password hashing | bcrypt, per-password salt (min 12 chars) |
+| Tokens | 15-min access JWT, 14-day refresh, revoked by `token_version` on password change |
+| Email verification & recovery | One-time SHA-256 hashed tokens (`auth_tokens`), TTL expiration, single-use enforcement |
+| Anti-enumeration | Constant-time generic responses on login, forgot-password, and resend verification |
+| Malware protection | ClamAV multi-engine streaming scanning, quarantine on detection, fail-secure in production |
+| Secure document parsing | Strict magic-byte signatures, PDF bombs/decompression guards, PyMuPDF time/page bounds |
+| Scanned resume OCR | Automatic scanned PDF detection, OpenCV adaptive contrast preprocessing, Tesseract OCR |
 | Data isolation | Row-level `user_id`; another user's resource returns `404` |
-| Uploads | Extension + magic bytes + streaming size cap |
+| Uploads | Extension + magic bytes + streaming size cap (10 MB) |
 | Downloads | HMAC-signed, user-bound, 15-minute capability URL |
-| Rate limits | Login 5/15 min · uploads 10/h · analyses 20/h · exports 30/h |
+| Rate limits | Auth 5-10/15 min · uploads 10/h · analyses 20/h · exports 30/h |
 | Response headers | `nosniff` · `DENY` framing · `no-referrer` · strict CSP · `no-store` |
 
 Full detail, including what is deliberately not implemented yet, is in [`docs/SECURITY.md`](docs/SECURITY.md).
@@ -386,8 +390,8 @@ Stated here rather than discovered later:
 - **The weights are not empirically validated.** A reproducible harness shows the shipped vector is not beaten by plausible alternatives on eight rubric-ranked fixtures; that is a floor, not a study.
 - **The ATS score simulates no specific vendor.** It measures structural parseability, the honest shared denominator.
 - **LLM is strictly an optional writing assistant.** The scoring engine, ATS checks, and parsing are 100% deterministic and never invoke an LLM. When configured, Google Gemini provides editorial rewrites under prompt-injection and anti-hallucination guardrails; when unconfigured, POTENCIA falls back to deterministic rule recommendations.
-- **No OCR engine installed.** Scanned PDFs are detected and reported as `partial` with `ocr_not_performed` rather than silently scored on bad text.
-- **No malware scanning** on uploads; no email verification flow.
+- **OCR requires Tesseract.** Native text PDFs are extracted with zero overhead; scanned documents engage Tesseract OCR (built into Docker, or installed via package manager for host dev).
+- **Malware scanning requires ClamAV daemon.** ClamAV service is integrated via Docker Compose; in development test mode, scanning is safely mocked without network dependencies.
 - **Throughput is single-node and host-dependent.** The load run is 200 analyses over 8 clients against one API process; the same run has measured 54.6 and 77.4 analyses/s on this machine at different times, so no throughput claim is made. Multi-process and multi-host scaling are unmeasured.
 - **Comparison covers summary, skills, experience bullets, projects and education.** Certifications, achievements and leadership lines are carried in every version and exported, but are not diffed field by field.
 - **Registration is limited to 5 per 15 minutes per identity**, which a shared office IP can reach. The browser suite seeds once for that reason.

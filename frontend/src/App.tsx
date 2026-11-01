@@ -18,6 +18,9 @@ import { SettingsPage } from './pages/SettingsPage'
 import { StudioPage } from './pages/StudioPage'
 import { SystemStatusPage } from './pages/SystemStatusPage'
 import { UploadPage } from './pages/UploadPage'
+import { VerifyEmailPage } from './pages/VerifyEmailPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +41,9 @@ const router = createBrowserRouter([
       { path: 'status', element: <SystemStatusPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
+      { path: 'verify-email', element: <VerifyEmailPage /> },
+      { path: 'forgot-password', element: <ForgotPasswordPage /> },
+      { path: 'reset-password', element: <ResetPasswordPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

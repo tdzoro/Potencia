@@ -45,6 +45,25 @@ def create(
     return user
 
 
+def mark_email_verified(session: Session, user: User) -> User:
+    """Mark an account's email as verified."""
+    user.email_verified = True
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def update_password(session: Session, user: User, password_hash: str) -> User:
+    """Update password hash and bump token_version to invalidate all existing sessions."""
+    user.password_hash = password_hash
+    user.token_version = (user.token_version or 0) + 1
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
 def bump_token_version(session: Session, user: User) -> User:
     """Invalidate every refresh token issued to this account."""
     user.token_version = (user.token_version or 0) + 1
