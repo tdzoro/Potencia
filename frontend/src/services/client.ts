@@ -7,7 +7,7 @@
  * rather than loop.
  */
 
-import { ApiError, apiFetch } from './api'
+import { ApiError, apiFetch, buildApiUrl } from './api'
 import type { TokenPair } from '../types/domain'
 
 const ACCESS_KEY = 'potencia.access_token'
@@ -124,11 +124,11 @@ export async function authedUpload<T>(path: string, file: File): Promise<T> {
   const attempt = async (accessToken: string): Promise<Response> => {
     const form = new FormData()
     form.append('file', file)
-    return fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}${path}`, {
+    return fetch(buildApiUrl(path), {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
       body: form,
-      credentials: 'omit',
+      credentials: 'same-origin',
     })
   }
 

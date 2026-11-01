@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_current_user_any
 from app.core.database import get_db
+from app.core.errors import PotenciaError
+from app.core.logging import get_request_id
 from app.models.user import User
 from app.schemas.auth import (
     AuthResponse,
@@ -23,6 +26,8 @@ from app.schemas.auth import (
 )
 from app.services import auth_service
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 # Account management shares this module so the user's own account operations
 # stay beside the credentials they act on.
@@ -36,8 +41,48 @@ users_router = APIRouter(prefix="/users", tags=["users"])
     summary="Create an account, receive tokens and initiate email verification",
 )
 def register(payload: RegisterRequest, session: Session = Depends(get_db)) -> AuthResponse:
-    user, tokens = auth_service.register(session, payload)
-    return AuthResponse(user=UserOut.model_validate(user), tokens=tokens)
+    request_id = get_request_id()
+    logger.info(
+        "registration request received",
+        extra={
+            "request_id": request_id,
+            "endpoint": "/api/v1/auth/register",
+            "has_display_name": bool(payload.display_name),
+        },
+    )
+    try:
+        user, tokens = auth_service.register(session, payload)
+        logger.info(
+            "registration succeeded",
+            extra={
+                "request_id": request_id,
+                "user_id": str(user.id),
+                "outcome": "created",
+                "email_verified": user.email_verified,
+            },
+        )
+        return AuthResponse(user=UserOut.model_validate(user), tokens=tokens)
+    except PotenciaError as exc:
+        logger.warning(
+            "registration rejected with application error",
+            extra={
+                "request_id": request_id,
+                "outcome": "rejected",
+                "code": exc.code,
+                "status_code": exc.status_code,
+            },
+        )
+        raise
+    except Exception as exc:
+        logger.error(
+            "registration failed with unexpected exception",
+            extra={
+                "request_id": request_id,
+                "outcome": "error",
+                "exception_type": type(exc).__name__,
+            },
+        )
+        raise
 
 
 @router.post("/login", response_model=TokenPair, summary="Exchange credentials for tokens")

@@ -13,11 +13,13 @@ Enforces:
 
 from __future__ import annotations
 
+import logging
 import secrets
 import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
 
+# pyrefly: ignore[missing-import]
 import jwt
 from sqlalchemy.orm import Session
 
@@ -40,6 +42,8 @@ from app.services import email_service
 
 LOGIN_FAILED_MESSAGE = "Incorrect email or password."
 INVALID_REFRESH_MESSAGE = "The refresh token is invalid or has expired."
+
+logger = logging.getLogger(__name__)
 
 
 def _is_expired(dt: datetime) -> bool:
@@ -96,8 +100,17 @@ def register(session: Session, payload: RegisterRequest) -> tuple[User, TokenPai
         expires_in_seconds=settings.verification_token_expire_hours * 3600,
     )
 
-    # Dispatch verification email
-    email_service.send_verification_email(user.email, user.display_name, raw_token)
+    # Dispatch verification email (fail-safe: SMTP outage must not crash account creation)
+    try:
+        email_service.send_verification_email(user.email, user.display_name, raw_token)
+    except Exception as exc:
+        logger.error(
+            "failed to dispatch verification email during registration",
+            extra={
+                "user_id": str(user.id),
+                "exception_type": type(exc).__name__,
+            },
+        )
 
     return user, _issue_tokens(user)
 
