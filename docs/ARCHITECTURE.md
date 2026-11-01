@@ -85,12 +85,15 @@ A router that needs two service calls in sequence is a signal the workflow belon
 
 | | |
 |:--|:--|
-| **Responsibility** | Validation, extraction, OCR fallback, page/geometry analysis, export rendering |
-| **Owns** | `extraction/`, `validation/`, `ocr/`, `export/` |
+| **Responsibility** | Validation, text extraction, automatic OCR fallback, page/geometry analysis, export rendering |
+| **Owns** | `extraction.py`, `validation.py`, `ocr.py`, `export/` |
 | **Never does** | Know what a score is, read a `Resume` model, or call the intelligence engine |
 | **May import** | `core` and its own subpackages |
 
-`document/` returns text plus geometry plus confidence. It has no opinion about quality — that separation is what lets extraction be tested against fixtures without any scoring machinery existing.
+`document/` returns text plus geometry plus confidence. It extracts native text directly where available; for scanned or image-dominant PDFs, it automatically executes OpenCV preprocessing (grayscale, noise reduction, CLAHE contrast enhancement, Otsu binarization, deskewing) and Tesseract OCR. Ordinary text PDFs bypass OCR entirely.
+
+### 3.5 `services/ocr_service.py` — OCR facade
+Exposes modular OCR routines (`ocr_pdf`, `ocr_image`, `preprocess_image`, `deskew_image`) to the document pipeline.
 
 ### 3.5 i/ — generation
 

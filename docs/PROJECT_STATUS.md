@@ -1,7 +1,7 @@
 # Project status
 
 **Last updated:** 1 November 2026
-**Current phase:** 21 complete — Security Hardening & Secure Document Processing (ClamAV Malware Scanning, Container Protection, and Tenant Isolation)
+**Current phase:** 22 complete — Optical Character Recognition (OCR) for Scanned Resumes (Tesseract OCR, OpenCV Preprocessing, and Scanned Document Detection)
 **Methodology version:** 1.0.0
 
 ---
@@ -126,6 +126,20 @@ Six guardrail tests make the regression catchable rather than remembering it: he
 
 **PASS.**
 
+### Phase 22 — Optical Character Recognition (OCR) for Scanned Resumes
+**PASS.**
+- **Modular OCR engine:** Created `backend/app/document/ocr.py` and `backend/app/services/ocr_service.py` integrating Tesseract OCR via `pytesseract` and PyMuPDF page rasterization.
+- **OpenCV image preprocessing:** Implemented `preprocess_image` with grayscale conversion, CLAHE adaptive contrast enhancement, Gaussian noise filtering, Otsu binarization, and safe contour-based deskewing (`deskew_image`).
+- **Intelligent automatic extraction:** Updated `backend/app/document/extraction.py` to inspect PDF text density; ordinary text-based PDFs bypass OCR for zero overhead, while scanned and image-dominant PDFs automatically trigger OCR.
+- **Confidence & quality tracking:** Computes word-level and page-level confidences, records low-confidence warnings (`ocr_low_confidence`), detects unreadable scans, and flags missing Tesseract installations (`ocr_engine_missing`) gracefully without server crashes.
+- **Frontend enhancement:** Updated `frontend/src/pages/UploadPage.tsx` with scanned PDF support badges, real-time OCR extraction indicators, dedicated OCR quality warning cards with actionable scanning guidance, and unreadable document states.
+- **Docker & environment configuration:** Updated `backend/Dockerfile` with `tesseract-ocr`, `tesseract-ocr-eng`, `libgl1`, and `libglib2.0-0`. Added `POTENCIA_OCR_*` settings to `config.py`, `.env.example`, and `docker-compose.yml`.
+- **Automated test suite:** 14 unit and integration tests added in `backend/tests/test_ocr.py`. Total backend test suite now 209 tests, all passing hermetically.
+
+**PASS.**
+
+---
+
 ### Phase 21 — Security Hardening & Secure Document Processing
 **PASS.**
 - **Malware scanning integration:** Implemented native pure-Python ClamAV `INSTREAM` streaming protocol client over TCP (`backend/app/services/malware_scanner.py`) with configurable socket timeouts and zero third-party dependencies.
@@ -158,7 +172,7 @@ Browser journey verified in Chrome: score rendered from the DOM, acceptance pers
 | KI-2 | No LLM provider | Resolved | Optional Google Gemini provider implemented behind the provider seam in Phase 20 |
 | KI-4 | No malware scanning on uploads | Resolved | Integrated ClamAV daemon malware scanning (INSTREAM protocol) with fail-closed production mode and EICAR detection in Phase 21 |
 | KI-5 | No email verification flow | Low | Field stored, no mail sent |
-| KI-6 | OCR engine not installed | Low | Scanned documents are detected and labelled `ocr_not_performed`, never silently scored |
+| KI-6 | OCR engine not installed | Resolved | Integrated Tesseract OCR and OpenCV preprocessing for scanned resumes in Phase 22 |
 **Resolved in Phase 17:** per-process-only rate limits, missing export history, absent browser automation, unverified click-through of the match view, manual-only retention (now scheduled in compose), multi-version resumes (now labelled with comparison), a `500` on a malformed `parent_id`, and export rows mislabelled with an expiry as a generation time.
 
 ---

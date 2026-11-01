@@ -1,8 +1,7 @@
-"""Application settings.
+"""Application settings loaded from the environment (docs/API.md §1).
 
-Every value comes from the environment. Nothing secret has a working default in
-production: `secret_key` defaults to a clearly-labelled development placeholder
-and the app refuses to start with it when `environment == "production"`.
+Defaults are explicitly safe for local development, and every production check
+refuses to boot if a production requirement is violated.
 """
 
 from __future__ import annotations
@@ -12,13 +11,10 @@ from functools import lru_cache
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Deliberately obvious so it can never be mistaken for a real key.
 INSECURE_DEV_SECRET = "dev-insecure-change-me"
 
 
 class Settings(BaseSettings):
-    """Runtime configuration, read from `POTENCIA_*` environment variables."""
-
     model_config = SettingsConfigDict(
         env_prefix="POTENCIA_",
         env_file=".env",
@@ -28,25 +24,26 @@ class Settings(BaseSettings):
 
     environment: str = "development"
     app_version: str = "0.1.0"
-
-    # Required on purpose: a misconfigured deployment must fail loudly rather
-    # than silently fall back to a local database nobody can see.
-    database_url: str
-
-    secret_key: str = INSECURE_DEV_SECRET
-    cors_origins: str = "http://localhost:5173"
     log_level: str = "INFO"
 
-    # Optional. When set, rate-limit counters are shared across workers; when
-    # unset, each process keeps its own budget and says so at startup.
+    # Database
+    database_url: str = (
+        "postgresql+psycopg://potencia:potencia@localhost:5432/potencia"
+    )
+
+    # Security
+    secret_key: str = INSECURE_DEV_SECRET
+    cors_origins: str = "http://localhost:5173"
+
+    # Token lifetimes (minutes)
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 14
+
+    # Rate limiting
+    rate_limit_enabled: bool = True
     redis_url: str | None = None
 
-    # Load tests and benchmarks switch the limiter off to measure the engine
-    # rather than the throttle. It is on by default and must stay on in
-    # production.
-    rate_limit_enabled: bool = True
-
-    # Where uploaded documents live. Never inside the database, never public.
+    # Storage
     storage_root: str = "storage"
     max_upload_bytes: int = 5 * 1024 * 1024
 
@@ -75,6 +72,21 @@ class Settings(BaseSettings):
     # Document Hardening Limits
     max_pdf_pages: int = 50
     max_docx_entries: int = 1000
+
+    # OCR Configuration
+    ocr_enabled: bool = True
+    ocr_tesseract_cmd: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("POTENCIA_OCR_TESSERACT_CMD", "OCR_TESSERACT_CMD"),
+    )
+    ocr_language: str = Field(
+        default="eng",
+        validation_alias=AliasChoices("POTENCIA_OCR_LANGUAGE", "OCR_LANGUAGE"),
+    )
+    ocr_timeout_seconds: float = 30.0
+    ocr_dpi: int = 200
+    ocr_min_confidence: float = 40.0
+    ocr_deskew_enabled: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:

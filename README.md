@@ -6,7 +6,7 @@
 
 **AI Resume Intelligence — explainable scoring, ATS compatibility, job matching, and edits you approve.**
 
-[![Tests](https://img.shields.io/badge/tests-195%20backend%20·%2011%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![Tests](https://img.shields.io/badge/tests-209%20backend%20·%2011%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
 [![API](https://img.shields.io/badge/API-32%20operations-22D3EE?style=flat-square)](docs/API.md)
 [![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
 [![Licence](https://img.shields.io/badge/licence-proprietary-9AA3C7?style=flat-square)](LICENSE)
@@ -277,6 +277,21 @@ flowchart TB
     S --> FS
     X -.-> R
 ```
+
+---
+
+### Automatic OCR for Scanned Resumes
+
+POTENCIA transparently supports both digital text PDFs and scanned paper resumes:
+
+- **Automatic Scanned Document Detection:** Native text layers are extracted directly; if a PDF is scanned or image-dominant, the engine automatically engages OCR. Ordinary text PDFs bypass OCR with zero performance penalty.
+- **OpenCV Preprocessing:** Scanned pages are rendered at 200 DPI and processed through grayscale conversion, CLAHE adaptive contrast enhancement, noise reduction, and safe deskewing.
+- **Tesseract OCR Integration:** Extracted text is assembled in page order with word-level confidence tracking.
+- **Local Tesseract Installation:**
+  - **Docker:** Included out-of-the-box in `backend/Dockerfile`.
+  - **Windows (Host):** Install via winget: `winget install UB-Mannheim.TesseractOCR` and optionally set `POTENCIA_OCR_TESSERACT_CMD="C:\Program Files\Tesseract-OCR\tesseract.exe"`.
+  - **Linux (Host):** `sudo apt-get install tesseract-ocr tesseract-ocr-eng`.
+  - **macOS (Host):** `brew install tesseract`.
 
 ---
 

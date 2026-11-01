@@ -116,17 +116,34 @@ export function UploadPage() {
   const missingSections = structure
     ? SECTION_LABELS.filter(([key]) => !structure.sections[key])
     : []
+  const isFailed = resume?.status === 'failed' || extraction?.method === 'failed'
+  const isLowConfidenceOcr = Boolean(
+    extraction?.ocr_used &&
+      (extraction.confidence < 0.55 || extraction.warnings.includes('ocr_low_confidence')),
+  )
   const poorlyExtracted = Boolean(
-    extraction && (extraction.confidence < 0.6 || presentSections.length < 3),
+    !isFailed &&
+      extraction &&
+      (extraction.confidence < 0.6 || presentSections.length < 3 || isLowConfidenceOcr),
   )
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader
-        eyebrow="New analysis"
-        title="Upload a resume"
-        description="PDF or DOCX, up to 5 MB. The document is validated by its actual contents before anything is read, and nothing extracted is stored until the parse succeeds."
-      />
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <PageHeader
+            eyebrow="New analysis"
+            title="Upload a resume"
+            description="PDF or DOCX, up to 5 MB. Digital text documents and scanned image resumes are supported (automatic OCR enabled)."
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge tone="info">Automatic OCR Enabled</Badge>
+          <span className="text-xs text-muted">
+            Scanned PDF documents automatically undergo optical character recognition.
+          </span>
+        </div>
+      </div>
 
       <section aria-labelledby="upload-heading" className="flex flex-col gap-4">
         <h2 id="upload-heading" className="text-lg font-semibold text-ink">
@@ -150,7 +167,7 @@ export function UploadPage() {
             Drop a PDF or DOCX here, or click to browse
           </span>
           <span className="text-xs text-muted">
-            {file ? `${file.name} · ${formatBytes(file.size)}` : 'The file is checked again on the server.'}
+            {file ? `${file.name} · ${formatBytes(file.size)}` : 'Text-based and scanned image PDFs are accepted.'}
           </span>
           <input
             ref={inputRef}
@@ -179,10 +196,13 @@ export function UploadPage() {
               }
             }}
           >
-            {upload.isPending ? 'Reading the document…' : 'Upload and parse'}
+            {upload.isPending ? 'Reading and processing…' : 'Upload and parse'}
           </button>
           {upload.isPending ? (
-            <p className="text-xs text-muted">Extraction runs on the server; this usually takes a second.</p>
+            <div className="flex items-center gap-2 text-xs text-electric">
+              <span className="inline-block h-2 w-2 animate-ping rounded-full bg-electric" />
+              <span>Extracting document text (scanned documents are processed via OCR)…</span>
+            </div>
           ) : null}
         </div>
 
@@ -201,7 +221,53 @@ export function UploadPage() {
             What was read from the document
           </h2>
 
-          {poorlyExtracted ? (
+          {isFailed ? (
+            <div className="panel border-rose-400/40 bg-rose-500/10 p-5">
+              <div className="flex items-center gap-2">
+                <Badge tone="bad">Extraction Failed</Badge>
+                <p className="text-sm font-semibold text-rose-200">
+                  Document could not be read or recognized
+                </p>
+              </div>
+              <p className="mt-2 text-sm text-rose-100/90">
+                {typeof resume.failure?.message === 'string'
+                  ? resume.failure.message
+                  : 'No extractable text was found in the document, and optical character recognition was unable to read the scan.'}
+              </p>
+              <div className="mt-3 text-xs text-muted">
+                <p className="font-semibold text-ink">Recommendations for scanned resumes:</p>
+                <ul className="mt-1 list-disc pl-5 space-y-1">
+                  <li>Ensure the scan is clear, sharp, and high contrast (black text on clean white paper).</li>
+                  <li>Scan at 200–300 DPI resolution and avoid skewed or rotated pages.</li>
+                  <li>Ensure the document is oriented right-side up.</li>
+                  <li>If possible, export an editable digital PDF or DOCX directly from your word processor.</li>
+                </ul>
+              </div>
+            </div>
+          ) : null}
+
+          {isLowConfidenceOcr ? (
+            <div className="panel border-amber-400/40 bg-amber-500/10 p-5">
+              <div className="flex items-center gap-2">
+                <Badge tone="warn">Low OCR Quality</Badge>
+                <p className="text-sm font-semibold text-amber-200">
+                  Scanned text quality is low ({(extraction ? extraction.confidence * 100 : 0).toFixed(0)}%)
+                </p>
+              </div>
+              <p className="mt-2 text-sm text-amber-100/90">
+                The OCR engine encountered degraded or low-contrast text. Some words, dates, or contact details may be incomplete or misrecognized.
+              </p>
+              <div className="mt-3 text-xs text-muted">
+                <p className="font-semibold text-ink">For accurate ATS scoring and recommendations:</p>
+                <ul className="mt-1 list-disc pl-5 space-y-1">
+                  <li>Upload a higher-resolution scan (200–300 DPI) without heavy shadows.</li>
+                  <li>Ensure text is horizontally aligned and not tilted or skewed.</li>
+                  <li>Avoid mobile camera photographs with glare or wrinkled paper.</li>
+                  <li>Or upload the original DOCX/PDF file directly.</li>
+                </ul>
+              </div>
+            </div>
+          ) : poorlyExtracted && !isLowConfidenceOcr ? (
             <div className="panel border-amber-400/40 p-5">
               <p className="text-sm font-semibold text-amber-200">
                 This document did not extract cleanly
@@ -218,6 +284,18 @@ export function UploadPage() {
             </div>
           ) : null}
 
+          {extraction?.ocr_used && !isLowConfidenceOcr && !isFailed ? (
+            <div className="panel border-emerald-400/30 bg-emerald-500/5 p-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Badge tone="ok">OCR Processed</Badge>
+                <span className="text-sm text-ink">Text successfully extracted from scanned resume</span>
+              </div>
+              <span className="text-xs text-muted">
+                OCR Confidence: {(extraction.confidence * 100).toFixed(0)}%
+              </span>
+            </div>
+          ) : null}
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="panel p-5">
               <p className="label">Pages</p>
@@ -227,7 +305,7 @@ export function UploadPage() {
               <p className="label">Extraction</p>
               <p className="mt-2 font-mono text-xl text-ink">{extraction?.method ?? '—'}</p>
               <p className="mt-1 text-xs text-muted">
-                {extraction?.ocr_used ? 'OCR fallback used' : 'Text layer read directly'}
+                {extraction?.ocr_used ? 'OCR engine used' : 'Text layer read directly'}
               </p>
             </div>
             <div className="panel p-5">
@@ -295,12 +373,12 @@ export function UploadPage() {
             <button
               type="button"
               className="btn-primary"
-              disabled={analyse.isPending || poorlyExtracted}
+              disabled={analyse.isPending || poorlyExtracted || isFailed}
               onClick={() => analyse.mutate(resume.id)}
             >
               {analyse.isPending ? 'Scoring…' : 'Run analysis'}
             </button>
-            {poorlyExtracted ? (
+            {poorlyExtracted || isFailed ? (
               <p className="text-xs text-muted">
                 Scoring is blocked until the document parses cleanly — a score from a broken parse
                 would be a number about nothing.

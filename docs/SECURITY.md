@@ -41,9 +41,17 @@ Uploaded resumes undergo a strict 12-step validation and ingestion pipeline befo
    - In local development mode with scanner unconfigured, logs a warning and falls back safely to test scanning.
 8. **Malware rejection:** Files identified as malicious are rejected with HTTP `422 Unprocessable Entity` containing the threat classification, without persisting the bytes to disk.
 9. **Secure storage:** Approved files are saved using content-addressed SHA-256 digests (`storage_key = {prefix}{digest[:2]}/{digest}.ext`) under `POTENCIA_STORAGE_ROOT`, outside web root and database. Storage files are created with restrictive permissions (`0o600` for files, `0o700` for directories). Internal storage paths and keys are never exposed in API responses.
-10. **Extract document text:** Text layers extracted using PyMuPDF (PDF) or python-docx (DOCX).
+10. **Extract document text:** Text layers extracted using PyMuPDF (PDF) or python-docx (DOCX). For scanned or image-dominant PDFs, automatically engages the OpenCV preprocessing pipeline and Tesseract OCR engine with word-level confidence scoring.
 11. **Validate extracted content:** Unparseable or empty documents are flagged with appropriate error metadata.
 12. **Automatic failure cleanup:** If text extraction or database persistence fails after storing, the uploaded file is immediately unlinked from object storage to prevent orphaned files.
+
+
+### OCR & Computer Vision Security
+- **Strict Pre-Execution Gate:** OCR executes strictly after file size checks, extension/magic-byte validation, and ClamAV malware scanning. Malicious files never reach the OCR engine.
+- **Resource & Memory Bounds:** Multi-page rendering enforces the maximum page limit (`POTENCIA_MAX_PDF_PAGES=50`) and renders at 200 DPI. Bitmaps and pixmaps are released page-by-page to prevent memory exhaustion.
+- **Processing Timeouts:** Per-page and total document timeouts (`POTENCIA_OCR_TIMEOUT_SECONDS`, default 30s) prevent denial-of-service from adversarial or complex scanned images.
+- **In-Memory Operations:** Preprocessing and OCR operate strictly in-memory without creating unmanaged temporary image files on disk.
+- **Confidence Transparency:** Low-quality or degraded scans trigger an explicit `ocr_low_confidence` warning to prevent unreliable analysis.
 
 ## Downloads
 
