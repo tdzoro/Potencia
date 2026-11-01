@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Deliberately obvious so it can never be mistaken for a real key.
@@ -48,6 +49,20 @@ class Settings(BaseSettings):
     # Where uploaded documents live. Never inside the database, never public.
     storage_root: str = "storage"
     max_upload_bytes: int = 5 * 1024 * 1024
+
+    # Optional Gemini AI rewrite configuration
+    gemini_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GEMINI_API_KEY", "POTENCIA_GEMINI_API_KEY", "Gemini API Key"),
+    )
+    gemini_model: str = Field(
+        default="gemini-2.5-flash",
+        validation_alias=AliasChoices("GEMINI_MODEL", "POTENCIA_GEMINI_MODEL"),
+    )
+    gemini_timeout_seconds: int = Field(
+        default=30,
+        validation_alias=AliasChoices("GEMINI_TIMEOUT_SECONDS", "POTENCIA_GEMINI_TIMEOUT_SECONDS"),
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:

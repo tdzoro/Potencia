@@ -1,4 +1,4 @@
-"""Recommendation decisions (docs/API.md §3.7)."""
+"""Recommendation decisions and AI rewrites (docs/API.md §3.7)."""
 
 from __future__ import annotations
 
@@ -29,5 +29,20 @@ def decide(
         recommendation_id,
         decision=payload.decision,
         edited_text=payload.edited_text,
+    )
+    return recommendation_service.to_out(recommendation)
+
+
+@router.post("/{recommendation_id}/regenerate", response_model=RecommendationOut)
+def regenerate(
+    recommendation_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> RecommendationOut:
+    """Regenerate an AI rewrite suggestion for this recommendation using Gemini."""
+    recommendation = recommendation_service.regenerate(
+        db,
+        user,
+        recommendation_id,
     )
     return recommendation_service.to_out(recommendation)

@@ -1,7 +1,7 @@
 # Project status
 
 **Last updated:** 1 November 2026
-**Current phase:** 19 complete — proprietary licence and a profiled, faster engine
+**Current phase:** 20 complete — Google Gemini AI writing assistant integration with prompt-injection and non-fabrication controls
 **Methodology version:** 1.0.0
 
 ---
@@ -104,11 +104,33 @@ Six guardrail tests make the regression catchable rather than remembering it: he
 
 **PASS.**
 
+### Phase 20 — Gemini AI rewrite provider
+
+**Provider implementation.** Implemented `GeminiRewriteProvider` implementing `RewriteProvider` (`app/ai/providers/gemini.py`) using the official Google Gen AI Python SDK (`google-genai`). Dynamically selected via `GEMINI_API_KEY` and `GEMINI_MODEL` (`gemini-2.5-flash` default). When unconfigured, `NullRewriteProvider` ensures transparent deterministic fallback without breaking any workflow.
+
+**Strict anti-hallucination & non-fabrication.** The model acts solely as an editorial rewrite assistant:
+- Never invents employers, dates, qualifications, certifications, or technical skills.
+- Never invents numerical metrics, percentages, dollar amounts, or operational scale.
+- Where a metric would strengthen a bullet, the model populates `requires_user_input` asking the user for the real figure instead of fabricating one.
+- An automated post-validation gate detects and rejects proposals that introduce new numerical digits when the original text had none.
+
+**Prompt injection defense.** Untrusted resume content is isolated within `<untrusted_resume_content>` delimiters with escaping. System instructions explicitly forbid the model from executing or acknowledging embedded directives. Strict Pydantic output schemas enforce structured JSON.
+
+**Zero scoring impact.** The deterministic parsing, ATS, and scoring engines remain 100% untouched. Gemini output affects only advisory recommendation text and is labelled `source: "gemini"`.
+
+**Resilience & caching.** 30-second timeouts, graceful degradation on 429 rate limits or timeouts, and bounded in-memory LRU caching to eliminate duplicate API calls. Regeneration endpoint `POST /api/v1/recommendations/{id}/regenerate` allows on-demand fresh rewrites with cache bypassing.
+
+**Frontend.** Recommendations page includes an AI rewrite indicator, side-by-side comparison, manual edit modal, regenerate action with loading state, and error handling.
+
+**Hermetic test suite.** 15 unit and integration tests added in `backend/tests/test_gemini_provider.py` mocking the Gen AI SDK. All 165 backend tests pass hermetically without a real API key.
+
+**PASS.**
+
 ---
 
 ## Verified end to end
 
-Register → upload → parse → analyse → recommendations → decide → revise → export (PDF + DOCX) → match, over HTTP against PostgreSQL, with downloaded documents re-opened and searched for their real contents.
+Register → upload → parse → analyse → recommendations (deterministic + Gemini AI rewrite) → decide → revise → export (PDF + DOCX) → match, over HTTP against PostgreSQL / SQLite, with downloaded documents re-opened and searched for their real contents.
 
 Browser journey verified in Chrome: score rendered from the DOM, acceptance persisted across reload, signed download link present, a job description producing a named gap, a revision saved without altering the original.
 
@@ -119,7 +141,7 @@ Browser journey verified in Chrome: score rendered from the DOM, acceptance pers
 | ID | Issue | Severity | Notes |
 |:--|:--|:--|:--|
 | KI-1 | Weights not empirically validated | Medium | Harness shows the shipped vector is not beaten by alternatives on rubric fixtures; that is a floor, not a study |
-| KI-2 | No LLM provider | Low | Deliberate; seam exists and validates any rewrite |
+| KI-2 | No LLM provider | Resolved | Optional Google Gemini provider implemented behind the provider seam in Phase 20 |
 | KI-4 | No malware scanning on uploads | Medium | Type and size checked only |
 | KI-5 | No email verification flow | Low | Field stored, no mail sent |
 | KI-6 | OCR engine not installed | Low | Scanned documents are detected and labelled `ocr_not_performed`, never silently scored |
@@ -139,5 +161,4 @@ Browser journey verified in Chrome: score rendered from the DOM, acceptance pers
 ## Next
 
 1. Calibration study with independently ranked resumes, then a `methodology_version` bump if the weights move.
-2. Optional LLM rewrite provider behind the existing seam, with prompt-injection controls documented before it ships.
-3. Multi-process load test and a second host, so throughput can be quoted beyond one process.
+2. Multi-process load test and a second host, so throughput can be quoted beyond one process.

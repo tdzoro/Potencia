@@ -40,6 +40,12 @@ export function listRecommendations(analysisId: string): Promise<Recommendation[
   return authedRequest<Recommendation[]>(`/api/v1/analyses/${analysisId}/recommendations`)
 }
 
+export function regenerateRecommendation(recommendationId: string): Promise<Recommendation> {
+  return authedRequest<Recommendation>(`/api/v1/recommendations/${recommendationId}/regenerate`, {
+    method: 'POST',
+  })
+}
+
 export function decideRecommendation(
   recommendationId: string,
   decision: 'accept' | 'reject' | 'edit',

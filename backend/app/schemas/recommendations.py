@@ -45,6 +45,7 @@ class RecommendationOut(BaseModel):
     requires_user_input: list[UserInputPrompt] = Field(default_factory=list)
     confidence: Literal["low", "medium", "high"] = "medium"
     state: RecommendationState = "pending"
+    source: str = "rules"
     decided_at: datetime | None = None
 
 

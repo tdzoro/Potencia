@@ -90,14 +90,16 @@ A router that needs two service calls in sequence is a signal the workflow belon
 
 `document/` returns text plus geometry plus confidence. It has no opinion about quality — that separation is what lets extraction be tested against fixtures without any scoring machinery existing.
 
-### 3.5 `ai/` — generation
+### 3.5 i/ — generation
 
 | | |
 |:--|:--|
 | **Responsibility** | Provider adapters, prompt versioning, structured-output validation, retry and timeout policy, prompt-injection containment |
-| **Owns** | `providers/`, `prompts/`, `schemas/`, `orchestration/` |
+| **Owns** | providers/ (gemini.py, ase.py), prompts/, schemas/, orchestration/ |
 | **Never does** | Compute or adjust a numeric score, decide which findings exist, or receive raw document bytes |
-| **May import** | `core` and its own subpackages |
+| **May import** | core and its own subpackages |
+
+i/ encapsulates optional external AI rewrite providers (such as Google Gemini via GeminiRewriteProvider). Untrusted resume text is isolated inside <untrusted_resume_content> delimiters with strict anti-hallucination rules. Output is validated against Pydantic schemas and cached in an in-memory LRU cache. When unconfigured, NullRewriteProvider ensures transparent deterministic fallback without breaking any workflow.
 
 ### 3.6 `core/` — cross-cutting
 

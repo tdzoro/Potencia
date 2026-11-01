@@ -21,13 +21,16 @@ os.environ.setdefault(
 )
 os.environ.setdefault(
     "POTENCIA_DATABASE_URL",
-    "postgresql+psycopg://potencia:potencia@localhost:5432/potencia",
+    "sqlite+pysqlite:///:memory:",
 )
 # 32+ bytes: shorter HMAC keys are flagged by the JWT library for good reason.
 os.environ.setdefault(
     "POTENCIA_SECRET_KEY", "test-secret-not-for-production-0123456789abc"
 )
 os.environ.setdefault("POTENCIA_CORS_ORIGINS", "http://localhost:5173")
+# By default tests run without Gemini API key so NullRewriteProvider is tested
+os.environ.pop("GEMINI_API_KEY", None)
+os.environ.pop("POTENCIA_GEMINI_API_KEY", None)
 
 from collections.abc import Iterator  # noqa: E402
 

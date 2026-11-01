@@ -174,6 +174,16 @@ The engine produces 13 recommendations from 13 findings: 3 concrete rewrites, 4 
 
 The original parse is **revision 0** and is never overwritten. An edit is a new node pointing at its parent, so history is a tree you can always walk back.
 
+### Optional Google Gemini AI Writing Assistant
+
+POTENCIA includes an optional production-ready Google Gemini rewrite provider (gemini-2.5-flash via the official google-genai SDK):
+
+- **Factual fidelity**: Strictly forbidden from fabricating employment history, degrees, skills, or metrics.
+- **Metric gap detection**: When a bullet needs quantification, Gemini formulates a structured question asking the user for the real figure instead of inventing one.
+- **Prompt injection safeguards**: Untrusted document text is bounded within <untrusted_resume_content> delimiters with escaping and strict Pydantic JSON schema validation.
+- **Zero scoring impact**: Gemini never touches the deterministic ATS score or analysis pipeline; its proposals are labelled source: gemini.
+- **Transparent fallback**: If GEMINI_API_KEY is unset or encounters rate limits / timeouts, the engine automatically falls back to deterministic rule recommendations.
+
 ---
 
 ## Reliability that is enforced, not aspirational
@@ -348,7 +358,7 @@ Stated here rather than discovered later:
 
 - **The weights are not empirically validated.** A reproducible harness shows the shipped vector is not beaten by plausible alternatives on eight rubric-ranked fixtures; that is a floor, not a study.
 - **The ATS score simulates no specific vendor.** It measures structural parseability, the honest shared denominator.
-- **No LLM in the request path.** Recommendations are rules; the provider seam exists and validates any rewrite before use.
+- **LLM is strictly an optional writing assistant.** The scoring engine, ATS checks, and parsing are 100% deterministic and never invoke an LLM. When configured, Google Gemini provides editorial rewrites under prompt-injection and anti-hallucination guardrails; when unconfigured, POTENCIA falls back to deterministic rule recommendations.
 - **No OCR engine installed.** Scanned PDFs are detected and reported as `partial` with `ocr_not_performed` rather than silently scored on bad text.
 - **No malware scanning** on uploads; no email verification flow.
 - **Throughput is single-node and host-dependent.** The load run is 200 analyses over 8 clients against one API process; the same run has measured 54.6 and 77.4 analyses/s on this machine at different times, so no throughput claim is made. Multi-process and multi-host scaling are unmeasured.

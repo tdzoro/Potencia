@@ -50,12 +50,37 @@ Counters live behind a `LimitStore` interface (`app/core/ratelimit_store.py`):
 
 If a configured Redis is unreachable, the API logs an error and falls back to process memory rather than failing requests — a degraded limit is better than an outage, but it is never silent.
 
+## AI Provider Security & Privacy (Google Gemini)
+
+When `GEMINI_API_KEY` is configured, POTENCIA connects to Google Gemini (`gemini-2.5-flash` default) as an editorial writing assistant for recommendations. The integration adheres to strict data minimization, prompt-injection containment, and anti-hallucination rules:
+
+### Data Sent to Gemini
+- **Sent**: Only the specific sentence or bullet point being improved, the recommendation category, and the reason for the improvement.
+- **NEVER sent**: Candidate names, email addresses, phone numbers, addresses, personal links, file names, raw document bytes, or complete resume bodies.
+
+### Prompt Injection Safeguards
+- All extracted resume text is treated as untrusted data, never as system instructions.
+- Untrusted text is strictly enclosed in isolated `<untrusted_resume_content>` XML tags with closing-tag escaping.
+- System instructions explicitly forbid the model from executing, obeying, or acknowledging any instructions, prompt overrides, or system commands found inside untrusted resume text.
+- Output is constrained by server-side JSON schema enforcement via Pydantic (`_GeminiResponseSchema`).
+- Output length is strictly capped (`max_output_tokens=1024`, schema length `max_length=2000`).
+- No external code or tools are executable from model output.
+
+### Anti-Hallucination & Non-Fabrication Rules
+- Gemini is instructed to preserve factual meaning without inventing employers, dates, qualifications, degrees, skills, or certifications.
+- Zero fabrication of numerical claims (percentages, revenue, user counts). If a bullet lacks quantification, the model formulates a prompt in `requires_user_input` asking the user for the real figure.
+- An automated post-validation rule rejects any proposal that introduces new numerical digits when the source text contained none.
+
+### Deterministic Engine Independence
+- Gemini output is tagged `source: "gemini"` and acts solely as an advisory proposal.
+- Gemini is never invoked during parsing, normalization, scoring, or ATS checking.
+- Deterministic ATS scores, category weights, and resume revision 0 are completely invariant to model responses or provider outages.
+
 ## What is deliberately not done
 
 | Area | Status | Why |
 |:--|:--|:--|
-| LLM provider | Not wired | Recommendations are deterministic rules. A model cannot invent an achievement because no model is in the request path. The provider seam (`app/ai/providers`) exists and validates any rewrite against a schema before use. |
-| Prompt injection | Not applicable yet | No document text is sent to an external model. The design note remains in `ARCHITECTURE.md` so it is not lost when a provider is added. |
+| LLM scoring | Prohibited | Scores and findings are 100% deterministic rules. An LLM is used only as an optional text rewrite assistant (`app/ai/providers/gemini.py`). |
 | Malware scanning | Not integrated | Uploads are type-checked and size-capped but not scanned. A production deployment should add ClamAV or an equivalent in front of the parser. |
 | Email verification | Field exists, flow does not | `users.email_verified` is stored and returned; no mail is sent. |
 | Audit log | Structured request logging only | Method, path, status and duration are logged with a request id. Resume contents, emails and tokens are never logged. |
