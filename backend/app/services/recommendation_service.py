@@ -8,6 +8,7 @@ while deterministic rules serve as an immediate and reliable fallback.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError, as_completed
 import inspect
 import logging
 import uuid
@@ -83,6 +84,34 @@ def list_for_analysis(db: Session, user: User, analysis_id: uuid.UUID) -> list[R
     provider = get_provider()
     provider_available = provider.available()
 
+    # Concurrently pre-fetch AI rewrites for recommendations citing original text (capped to 5)
+    proposals_by_finding: dict[str, RewriteProposal] = {}
+    if provider_available:
+        candidates = [itm for itm in generated if itm.original_text][:5]
+        if candidates:
+            def _fetch(candidate):
+                try:
+                    return candidate.finding_id, provider.propose(
+                        RewriteRequest(
+                            original_text=candidate.original_text,
+                            reason=candidate.reason,
+                            context=f"Category: {candidate.category}",
+                        )
+                    )
+                except Exception:
+                    logger.warning("Failed to generate AI rewrite for recommendation", exc_info=True)
+                    return candidate.finding_id, None
+
+            with ThreadPoolExecutor(max_workers=min(5, len(candidates))) as executor:
+                future_to_cand = {executor.submit(_fetch, cand): cand for cand in candidates}
+                try:
+                    for future in as_completed(future_to_cand, timeout=10.0):
+                        fid, prop = future.result()
+                        if prop and prop.proposed_text:
+                            proposals_by_finding[fid] = prop
+                except (FutureTimeoutError, TimeoutError):
+                    logger.warning("AI rewrite requests exceeded concurrency deadline; degrading to rules")
+
     rows: list[Recommendation] = []
     for item in generated:
         proposed_text = item.proposed_text
@@ -90,28 +119,15 @@ def list_for_analysis(db: Session, user: User, analysis_id: uuid.UUID) -> list[R
         user_inputs = [prompt.model_dump() for prompt in item.requires_user_input]
         confidence = item.confidence
 
-        # If an AI provider is configured and this recommendation cites original text,
-        # request an AI-assisted rewrite.
-        if provider_available and item.original_text:
-            try:
-                proposal: RewriteProposal | None = provider.propose(
-                    RewriteRequest(
-                        original_text=item.original_text,
-                        reason=item.reason,
-                        context=f"Category: {item.category}",
-                    )
-                )
-                if proposal and proposal.proposed_text:
-                    proposed_text = proposal.proposed_text
-                    source = proposal.provider
-                    confidence = proposal.confidence
-                    if proposal.requires_user_input:
-                        for prompt_dict in proposal.requires_user_input:
-                            if prompt_dict not in user_inputs:
-                                user_inputs.append(prompt_dict)
-            except Exception:
-                # Degrade gracefully without failing recommendation generation
-                logger.warning("Failed to generate AI rewrite for recommendation", exc_info=True)
+        proposal = proposals_by_finding.get(item.finding_id)
+        if proposal and proposal.proposed_text:
+            proposed_text = proposal.proposed_text
+            source = proposal.provider
+            confidence = proposal.confidence
+            if proposal.requires_user_input:
+                for prompt_dict in proposal.requires_user_input:
+                    if prompt_dict not in user_inputs:
+                        user_inputs.append(prompt_dict)
 
         rows.append(
             Recommendation(

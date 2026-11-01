@@ -6,7 +6,7 @@
 
 **AI Resume Intelligence — explainable scoring, ATS compatibility, job matching, and edits you approve.**
 
-[![Tests](https://img.shields.io/badge/tests-227%20backend%20·%2011%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![Tests](https://img.shields.io/badge/tests-234%20backend%20·%2019%20unit%20·%2014%20e2e-6D3BF5?style=flat-square)](docs/QA_REPORT.md)
 [![API](https://img.shields.io/badge/API-36%20operations-22D3EE?style=flat-square)](docs/API.md)
 [![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
 [![Licence](https://img.shields.io/badge/licence-proprietary-9AA3C7?style=flat-square)](LICENSE)
@@ -372,14 +372,15 @@ Full detail, including what is deliberately not implemented yet, is in [`docs/SE
 ## Testing
 
 ```bash
-cd backend && pytest -q          # 150 tests, no database or network required
+cd backend && pytest -q          # 234 tests, no database or network required
+cd frontend && npm test          # 19 unit & component tests in Vitest
 cd frontend && npm run build     # strict typecheck + production build
-cd frontend && npm run e2e       # 11 browser tests against a live stack
+cd frontend && npm run e2e       # 14 end-to-end browser user journeys in Playwright
 ```
 
 The browser suite seeds its own account through the API and drives the real UI: the score is asserted from the DOM, a recommendation is accepted and re-read after reload, a PDF is generated and its signed link verified, a job description produces a named gap, a revision is saved without touching the original, a named version is compared field by field, and that same version is exported by name.
 
-Tests that exist to stop the product lying: score reconciliation, evidence on every finding, *no digits in an invented rewrite*, `partial` never collapsing into `absent`, and revision 0 being byte-identical after an edit. Details in [`docs/TESTING.md`](docs/TESTING.md).
+Tests that exist to stop the product lying: score reconciliation, evidence on every finding, *no digits in an invented rewrite*, `partial` never collapsing into `absent`, and revision 0 being byte-identical after an edit. Details in [`docs/TESTING.md`](docs/TESTING.md) and [`docs/QA_REPORT.md`](docs/QA_REPORT.md).
 
 ---
 
@@ -402,6 +403,7 @@ Stated here rather than discovered later:
 
 | Document | Contents |
 |:--|:--|
+| [QA Report](docs/QA_REPORT.md) | Comprehensive quality audit, findings, test results and benchmarks |
 | [SRS](docs/SRS.md) | Requirements, journeys, acceptance criteria |
 | [Architecture](docs/ARCHITECTURE.md) | Modules, boundaries, sequences, data model |
 | [API](docs/API.md) | Every endpoint, payload and error code |

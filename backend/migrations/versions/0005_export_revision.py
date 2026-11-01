@@ -20,19 +20,20 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "exports", sa.Column("revision_id", sa.Uuid(as_uuid=True), nullable=True)
-    )
-    op.create_foreign_key(
-        "fk_exports_revision_id_resume_revisions",
-        "exports",
-        "resume_revisions",
-        ["revision_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
+    with op.batch_alter_table("exports") as batch_op:
+        batch_op.add_column(
+            sa.Column("revision_id", sa.Uuid(as_uuid=True), nullable=True)
+        )
+        batch_op.create_foreign_key(
+            "fk_exports_revision_id_resume_revisions",
+            "resume_revisions",
+            ["revision_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_exports_revision_id_resume_revisions", "exports", type_="foreignkey")
-    op.drop_column("exports", "revision_id")
+    with op.batch_alter_table("exports") as batch_op:
+        batch_op.drop_constraint("fk_exports_revision_id_resume_revisions", type_="foreignkey")
+        batch_op.drop_column("revision_id")

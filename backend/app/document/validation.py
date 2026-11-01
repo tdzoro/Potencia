@@ -14,7 +14,7 @@ import re
 import zipfile
 from pathlib import PurePosixPath
 
-import fitz  # PyMuPDF
+import pymupdf as fitz
 
 from app.core.config import get_settings
 from app.core.errors import PotenciaError

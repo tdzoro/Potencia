@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import copy
 import io
-
-import fitz
+import pymupdf as fitz
 import pytest
 from docx import Document as DocxDocument
 from fastapi.testclient import TestClient

@@ -32,8 +32,7 @@ import io
 import socket
 import zipfile
 from unittest.mock import patch
-
-import fitz
+import pymupdf as fitz
 import pytest
 from docx import Document
 from fastapi.testclient import TestClient

@@ -688,3 +688,19 @@ GitHub Actions secrets, branch protection rules and deployment environments requ
 **Context.** When a dependency fails, the tempting move is to fill the gap with a default — score the missing category as zero, or generate a placeholder recommendation.
 **Decision.** Missing input removes weight from the denominator; missing provider output removes recommendations and says so; unextractable documents fail outright rather than score as empty.
 **Consequences.** Some runs return less than a user hoped for, and `applicable_weight` complicates the arithmetic. In return, no user ever acts on a number derived from data we did not have.
+
+### ADR-09 — Concurrent AI Proposal Pre-Fetching with Bounded Worker Pool
+
+**Context.** In Phase 20, generating AI rewrite proposals for multiple high-priority recommendations sequentially created a noticeable latency bottleneck on cold requests.
+**Decision.** In Phase 24, `recommendation_service.py` executes AI proposal generation for top priority candidates concurrently using `concurrent.futures.ThreadPoolExecutor(max_workers=5)` bounded by a strict 10-second timeout. Any failed, timed-out, or rate-limited candidate falls back instantly to deterministic rules.
+**Consequences.** Cold request latency is reduced up to 5x. If the external provider is slow or unavailable, deterministic rules are returned without delaying the user experience.
+
+### ADR-10 — Multi-Tier Testing Architecture
+
+**Context.** Complex interactions between FastAPI services, background tasks, database migrations, security rules, and React UI require distinct testing horizons to prevent regressions.
+**Decision.** Establish four discrete, hermetic testing tiers:
+1. **Backend Unit & Integration (Pytest):** 234 tests covering auth, token verification hashing, ClamAV malware scanning, OCR extraction, deterministic ATS arithmetic, cross-tenant 404 isolation, and programmatic Alembic migration round-trips.
+2. **Frontend Unit & Component (Vitest + Testing Library):** 19 tests in jsdom testing accessible DOM rendering, form validation, error states, and mutation workflows.
+3. **End-to-End User Journeys (Playwright):** 14 complete user journeys verifying browser flows against the integrated full stack.
+4. **Deterministic Profiling & Benchmarking:** Automated profiling harness (`scripts/profile_engine.py`) verifying latency and sub-linear scaling invariants.
+**Consequences.** Comprehensive test coverage without external network requirements; regressions are caught at the lowest feasible level.

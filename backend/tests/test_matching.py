@@ -8,8 +8,7 @@ advice for a missing skill must never suggest inventing it.
 from __future__ import annotations
 
 import io
-
-import fitz
+import pymupdf as fitz
 from fastapi.testclient import TestClient
 
 from app.intelligence.matching.engine import demonstrated_years, match_resume

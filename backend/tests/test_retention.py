@@ -10,8 +10,7 @@ from __future__ import annotations
 import io
 import uuid
 from datetime import datetime, timedelta, timezone
-
-import fitz
+import pymupdf as fitz
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 

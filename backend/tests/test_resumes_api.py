@@ -8,8 +8,7 @@ away from the code the way a checked-in fixture does.
 from __future__ import annotations
 
 import io
-
-import fitz
+import pymupdf as fitz
 import pytest
 from fastapi.testclient import TestClient
 

@@ -7,6 +7,7 @@ zero network requests and zero real API key requirements.
 from __future__ import annotations
 
 import json
+import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -445,3 +446,28 @@ def test_regenerate_endpoint(client: TestClient, session: Session, monkeypatch):
     data = res.json()
     assert data["source"] == "gemini"
     assert data["proposed_text"] == "Successfully re-engineered backend pipeline."
+
+
+# --- 11. Live Gemini API Test (Executed if valid GEMINI_API_KEY is present) ---
+
+
+@pytest.mark.skipif(
+    not os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY").startswith("test"),
+    reason="Requires valid GEMINI_API_KEY environment variable",
+)
+def test_gemini_live_call():
+    api_key = os.getenv("GEMINI_API_KEY")
+    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    provider = GeminiRewriteProvider(api_key=api_key, model=model)
+    assert provider.available()
+
+    req = RewriteRequest(
+        original_text="Responsible for updating python code and fixing bugs.",
+        reason="Action verb missing and impact not quantified.",
+        section="experience",
+    )
+    proposal = provider.propose(req)
+    assert proposal is not None
+    assert proposal.proposed_text
+    assert proposal.source == "gemini"
+

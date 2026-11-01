@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import io
 import uuid
-
-import fitz
+import pymupdf as fitz
 from fastapi.testclient import TestClient
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session

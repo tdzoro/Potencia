@@ -15,7 +15,7 @@ from __future__ import annotations
 import io
 import math
 
-import fitz  # PyMuPDF
+import pymupdf as fitz
 from docx import Document as load_docx
 
 from app.core.config import get_settings

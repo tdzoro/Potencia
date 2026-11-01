@@ -48,6 +48,15 @@ Every owned table carries `user_id` at row level, including tables reachable onl
 
 A request for another account's resource returns `404`, never `403`: whether a resource exists is itself private.
 
+### Multi-Tenant Isolation Test Suite (`backend/tests/test_tenant_isolation.py`)
+Automated in Phase 24 to guarantee regression-proof row-level isolation across all entity endpoints:
+- Two distinct authenticated tenants (User A and User B) are provisioned.
+- User A creates resumes, revisions, analyses, recommendations, jobs, matches, and exports.
+- User B attempts to read, edit, delete, or cross-match against each of User A's entities.
+- Asserted behavior: all cross-tenant requests strictly return HTTP `404 Not Found` with `{ "error": { "code": "not_found" } }`.
+- Cross-tenant match creation (User B attempting to match their resume against User A's job) returns `404`.
+- Cross-tenant export creation (User B attempting to export User A's analysis) returns `404`.
+
 ## Document handling & Secure Ingestion Pipeline
 
 Uploaded resumes undergo a strict 12-step validation and ingestion pipeline before reaching the parsing and scoring engines:

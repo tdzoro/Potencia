@@ -251,7 +251,7 @@ export function RecommendationsPage() {
                       </div>
                     ) : null}
 
-                    {item.requires_user_input.length > 0 ? (
+                    {item.requires_user_input && item.requires_user_input.length > 0 ? (
                       <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
                           We will not invent this

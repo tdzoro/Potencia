@@ -21,7 +21,7 @@ import io
 from unittest.mock import MagicMock, patch
 
 import cv2
-import fitz
+import pymupdf as fitz
 import numpy as np
 import pytest
 from docx import Document

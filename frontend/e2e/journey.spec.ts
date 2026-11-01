@@ -76,17 +76,43 @@ async function seededPage(context: BrowserContext, path: string, token: string):
   return page
 }
 
-test.describe('the signed-out surface', () => {
-  test('the landing page states what the product does and links to sign in', async ({ page }) => {
+test.describe('the signed-out surface & auth journeys', () => {
+  test('journey 0: landing page states what the product does and links to sign in', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/resume feedback/i)
     await expect(page.getByRole('link', { name: /sign in/i })).toBeVisible()
   })
 
-  test('an unauthenticated visitor cannot reach the dashboard', async ({ page }) => {
+  test('journey 0b: an unauthenticated visitor cannot reach the dashboard', async ({ page }) => {
     await page.goto('/app')
     await expect(page).toHaveURL(/\/login/)
     await expect(page.getByLabel(/email/i)).toBeVisible()
+  })
+
+  test('journey 1: user registration flow displays confirmation state', async ({ page }) => {
+    await page.goto('/register')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(/Measure the resume/i)
+    await page.getByLabel('Name (optional)').fill('New Applicant')
+    await page.getByLabel('Email').fill(`reg-user-${Date.now()}@example.com`)
+    await page.getByLabel(/^Password$/).fill('ValidPassword123!')
+    await page.getByLabel('Confirm password').fill('ValidPassword123!')
+    await page.getByRole('button', { name: /create account/i }).click()
+
+    await expect(page.locator('body')).toContainText(/Check your email/i)
+  })
+
+  test('journey 2: email verification handles missing or invalid token safely', async ({ page }) => {
+    await page.goto('/verify-email')
+    await expect(page.locator('body')).toContainText(/Missing verification link/i)
+  })
+
+  test('journey 13: password recovery flow accepts email and notifies user', async ({ page }) => {
+    await page.goto('/forgot-password')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(/Reset your/i)
+    await page.getByLabel('Email').fill('user-recovery@example.com')
+    await page.getByRole('button', { name: /send password reset link/i }).click()
+
+    await expect(page.locator('body')).toContainText(/Check your email/i)
   })
 })
 
@@ -233,5 +259,15 @@ test.describe('the authenticated journey', () => {
     await page.goto('/app/history')
     await expect(page.locator('body')).toContainText('arjun.pdf')
     await expect(page.locator('body')).toContainText(/analys/i)
+  })
+
+  test('journey 14: logout flow cleans session and redirects to sign in', async ({ page, context }) => {
+    await withSession(context, seeded.token)
+
+    await page.goto('/app')
+    await expect(page.getByRole('button', { name: /sign out/i }).first()).toBeVisible()
+    await page.getByRole('button', { name: /sign out/i }).first().click()
+
+    await expect(page).toHaveURL(/\/login/)
   })
 })
