@@ -411,6 +411,6 @@ Stated here rather than discovered later:
 <div align="center">
 
 **POTENCIA** · AI Resume Intelligence
-Built by [Arghya Bose](https://github.com/tdzoro) · © 2026 POTENCIA Team · All rights reserved
+Built by [Arghya Bose] [Trayam Roy] [ Mallick Ibrahim] (https://github.com/tdzoro) · © 2026 POTENCIA Team · All rights reserved
 
 </div>
