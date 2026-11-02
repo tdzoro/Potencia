@@ -2,8 +2,7 @@
 
 <img src="assets/brand/potencia-logo.png" alt="POTENCIA" width="720" />
 
-### Beyond Your Resume. 
-Unleash Your Potential.
+### Beyond Your Resume. Unleash Your Potential.
 
 **AI Resume Intelligence — explainable scoring, ATS compatibility, job matching, and edits you approve.**
 
@@ -316,7 +315,7 @@ cp .env.example .env            # set POTENCIA_SECRET_KEY
 docker compose up --build       # API on :8000, web on :8080, ClamAV on :3310, db on :5432, redis on :6379
 ```
 
-Local development:
+Local Development:
 
 ```bash
 cd backend
