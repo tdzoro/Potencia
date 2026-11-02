@@ -295,7 +295,7 @@ POTENCIA transparently supports both digital text PDFs and scanned paper resumes
 
 ---
 
-## Secure Document Processing & Malware Protection
+## Secure Document Processing & Malware Protection  
 
 POTENCIA treats uploaded documents as untrusted binary data:
 
