@@ -2,7 +2,8 @@
 
 <img src="assets/brand/potencia-logo.png" alt="POTENCIA" width="720" />
 
-### Beyond Your Resume. Unleash Your Potential.
+### Beyond Your Resume. 
+Unleash Your Potential.
 
 **AI Resume Intelligence — explainable scoring, ATS compatibility, job matching, and edits you approve.**
 
