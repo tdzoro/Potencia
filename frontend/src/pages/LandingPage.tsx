@@ -127,7 +127,7 @@ export function LandingPage() {
           Upload a resume, leave with a report you can act on.
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          PDF or DOCX, up to 5 MiB. POTENCIA extracts the text, rebuilds the sections and scores 27
+          PDF or DOCX, up to 5 MiB. POTENCIA extracts the text, rebuilds the sections and scores 30
           criteria across six weighted categories — naming the line behind every deduction.
         </p>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">

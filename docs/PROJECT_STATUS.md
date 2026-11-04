@@ -27,7 +27,7 @@ PDF and DOCX extraction, magic-byte and streaming size validation, scanned-docum
 Section segmentation, entity extraction, date normalisation, skill taxonomy, explicit vs inferred skills, uncertainty recorded rather than guessed. **PASS.**
 
 ### Phase 6 — Scoring engine
-27 criteria across 6 weighted categories, applicability handling, per-criterion confidence, evidence on every finding, deterministic arithmetic, methodology versioning. **PASS.**
+30 criteria across 6 weighted categories (5 per category), applicability handling, per-criterion confidence, evidence on every finding, deterministic arithmetic, methodology versioning. **PASS.**
 
 ### Phase 7 — ATS engine
 Structural checks with evidence and remediation; estimate separated from keyword relevance; disclaimer in the payload. **PASS.**

@@ -20,11 +20,11 @@
 
 Every resume tool gives you a number. Very few can tell you where the number came from — and fewer still will refuse to invent one.
 
-POTENCIA is built on a single constraint: **the score is arithmetic over evidence, not an opinion.** A rule set reads the document, extracts what is genuinely there, measures 27 criteria, and quotes the line that caused each deduction. The same document always produces the same score — not because it is cached, but because nothing random is in the path.
+POTENCIA is built on a single constraint: **the score is arithmetic over evidence, not an opinion.** A rule set reads the document, extracts what is genuinely there, measures 30 criteria, and quotes the line that caused each deduction. The same document always produces the same score — not because it is cached, but because nothing random is in the path.
 
 | | The question users actually ask | What answers it |
 |:--|:--|:--|
-| **01** | Is this resume any good? | 27 weighted criteria across 6 categories, reconciled to the point |
+| **01** | Is this resume any good? | 30 weighted criteria across 6 categories, reconciled to the point |
 | **02** | Will software even read it? | Structural ATS compatibility estimate, hazards named and ranked |
 | **03** | Does it fit *this* job? | Requirement extraction, then three-state skill matching |
 | **04** | What do I change first? | Findings ordered by points lost, each with a quoted line and a fix |
@@ -33,7 +33,7 @@ POTENCIA is built on a single constraint: **the score is arithmetic over evidenc
 flowchart LR
     A[Upload<br/>PDF · DOCX] --> B[Extract<br/>text layer · confidence]
     B --> C[Parse<br/>sections · entities]
-    C --> D[Score<br/>27 criteria]
+    C --> D[Score<br/>30 criteria]
     C --> E[ATS<br/>structural checks]
     C --> F[Match<br/>requirements]
     D --> G[Report<br/>evidence per finding]
@@ -123,7 +123,7 @@ One resume — 87 words, 2 roles, 4 bullets, 7 listed skills — through the fin
 | Recommendations | 13 |
 | Job match | **49.0** / 100 |
 | High / medium / low findings | 2 / 6 / 5 |
-| Criteria measured | 27 |
+| Criteria measured | 30 |
 
 </td>
 </tr>
@@ -272,7 +272,7 @@ The original parse is **revision 0** and is never overwritten. An edit is a new 
 | Stage | p50 | p95 | p99 |
 |:--|--:|--:|--:|
 | Parse | **0.84 ms** | 0.99 ms | 1.10 ms |
-| Score (27 criteria) | **0.41 ms** | 0.52 ms | 0.89 ms |
+| Score (30 criteria) | **0.41 ms** | 0.52 ms | 0.89 ms |
 | Parse + score | **1.58 ms** | 2.56 ms | 4.02 ms |
 | Job match (12 requirements) | **0.07 ms** | 0.11 ms | 0.20 ms |
 | Recommendations | **0.06 ms** | 0.07 ms | 0.09 ms |
@@ -369,7 +369,7 @@ flowchart TB
     subgraph Intelligence["Intelligence — deterministic"]
         D[Document<br/>validate · extract]
         P[Parser<br/>sections · entities · confidence]
-        SC[Scoring<br/>27 criteria · 6 categories]
+        SC[Scoring<br/>30 criteria · 6 categories]
         AT[ATS<br/>structural hazards]
         M[Matching<br/>requirements · 3-state skills]
         RC[Recommendations<br/>rules · provider seam]
@@ -395,6 +395,21 @@ flowchart TB
 | Data | PostgreSQL 16 · Redis (shared rate-limit counters) |
 | Documents | PyMuPDF · python-docx · text-layer extraction with scanned-PDF detection |
 | Delivery | Docker · Docker Compose · GitHub Actions · structured JSON logs |
+
+### Repository map
+
+| Path | What lives there |
+|:--|:--|
+| `backend/app/api/` | routes, dependencies, auth guards, error envelope |
+| `backend/app/intelligence/` | parser, scoring, ATS, matching, recommendations — no network calls |
+| `backend/app/document/` | validation, extraction, OCR seam, PDF/DOCX rendering |
+| `backend/app/services/` | ownership, orchestration, revisions, exports, retention |
+| `backend/tests/` | hermetic suite: parser, scoring, ATS, matching, API, security, performance |
+| `frontend/src/` | typed API client, dashboard, report, studio, match, export |
+| `frontend/e2e/` | Playwright journey against a real stack |
+| `scripts/` | every measurement and artefact in this file |
+| `assets/readme/` | the figures below, as raw JSON and PNG |
+| `docs/` | SRS, architecture, API, scoring, security, testing, status |
 
 ---
 
@@ -500,13 +515,30 @@ Stated here rather than discovered later:
 | [SRS](docs/SRS.md) | Requirements, journeys, acceptance criteria |
 | [Architecture](docs/ARCHITECTURE.md) | Modules, boundaries, sequences, data model |
 | [API](docs/API.md) | Every endpoint, payload and error code |
-| [Scoring methodology](docs/SCORING_METHODOLOGY.md) | All 27 criteria, weights, applicability, confidence |
+| [Scoring methodology](docs/SCORING_METHODOLOGY.md) | All 30 criteria, weights, applicability, confidence |
 | [Security](docs/SECURITY.md) | Controls, threat surface, gaps |
 | [Testing](docs/TESTING.md) | Coverage and the assertions that matter |
 | [Status](docs/PROJECT_STATUS.md) | Phase-by-phase state and known issues |
 | [Audit](docs/REPOSITORY_AUDIT.md) | The original repository assessment and what it drove |
 
-Every figure in this README is reproducible: `scripts/readme_metrics.py` measures the running API, `scripts/profile_engine.py` profiles the engine, `scripts/calibrate.py` tests the weights, `scripts/load_test.py` drives concurrency, `scripts/readme_charts.py` renders the graphs from the stored JSON, and `scripts/capture_screenshots.mjs` photographs the product.
+### Reproduce every figure
+
+Nothing above was typed by hand. Each script measures the running product and writes its raw output next to the chart, so a claim and its evidence ship together.
+
+| Script | What it measures | Writes |
+|:--|:--|:--|
+| `readme_metrics.py` | one real upload → analysis → recommendations → match → exports | `metrics.json`, `latency.png`, `findings.png` |
+| `profile_engine.py` | per-stage cost, cold start, size and requirement scaling | `engine_profile.json` |
+| `calibrate.py` | five weight vectors against eight rubric-ranked fixtures | `calibration.json` |
+| `load_test.py` | 200 analyses across 8 concurrent clients | `load.json` |
+| `readme_charts.py` | renders the graphs from the JSON above — measures nothing itself | `calibration.png`, `contribution.png`, `scaling.png`, `load.png` |
+| `capture_screenshots.mjs` | the authenticated journey in Chromium, then each screen | `ui-*.png` |
+
+```bash
+PYTHONPATH=backend backend/.venv/bin/python scripts/profile_engine.py
+PYTHONPATH=backend backend/.venv/bin/python scripts/calibrate.py
+PYTHONPATH=backend backend/.venv/bin/python scripts/readme_charts.py
+```
 
 ---
 
