@@ -90,6 +90,22 @@ Real screens from the running application, captured by `scripts/capture_screensh
 
 ---
 
+## What you actually download
+
+<img src="assets/readme/report-first-page.png" alt="First page of the generated PDF analysis report" width="680" />
+
+The PDF is not a screenshot of the app. It is rendered from the stored analysis — scores, the weights behind them, the ATS checks and the finding queue — and the improved resume renders through the same layout as PDF and DOCX.
+
+| Export | Format | Built from |
+|:--|:--|:--|
+| Analysis report | PDF | the stored analysis, its findings and ATS checks |
+| Improved resume | PDF / DOCX | the newest approved revision, or a version you pick by name |
+| Version comparison | inline | any two revisions, field by field |
+
+Every generated document is re-opened by a parser in the test suite and searched for the score and content it claims to contain — "a file was created" is not the same as "the file is correct".
+
+---
+
 ## Proof, not adjectives
 
 One resume — 87 words, 2 roles, 4 bullets, 7 listed skills — through the finished pipeline against PostgreSQL. Every figure is produced by `scripts/readme_metrics.py` and stored in [`assets/readme/metrics.json`](assets/readme/metrics.json).
@@ -533,6 +549,7 @@ Nothing above was typed by hand. Each script measures the running product and wr
 | `load_test.py` | 200 analyses across 8 concurrent clients | `load.json` |
 | `readme_charts.py` | renders the graphs from the JSON above — measures nothing itself | `calibration.png`, `contribution.png`, `scaling.png`, `load.png` |
 | `capture_screenshots.mjs` | the authenticated journey in Chromium, then each screen | `ui-*.png` |
+| `report_page.py` | a real generated report PDF, rasterised page one | `report-first-page.png` |
 
 ```bash
 PYTHONPATH=backend backend/.venv/bin/python scripts/profile_engine.py

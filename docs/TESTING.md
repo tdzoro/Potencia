@@ -89,9 +89,12 @@ PYTHONPATH=backend backend/.venv/bin/python scripts/readme_charts.py
 # Needs the API and a built web app: it seeds an account and runs the journey
 API_BASE_URL=http://127.0.0.1:8010 WEB_URL=http://127.0.0.1:4173 \
   node scripts/capture_screenshots.mjs
+
+# Page one of a real generated report PDF, rendered with PyMuPDF
+PYTHONPATH=backend:. backend/.venv/bin/python scripts/report_page.py
 ```
 
-`readme_charts.py` measures nothing; it reads `metrics.json`, `load.json`, `engine_profile.json` and `calibration.json`. `capture_screenshots.mjs` drives the real UI in Chromium — upload, analysis, job match, an accepted recommendation, a named version, two exports — and screenshots each screen, so an image cannot show a screen that does not work.
+`readme_charts.py` measures nothing; it reads `metrics.json`, `load.json`, `engine_profile.json` and `calibration.json`. `capture_screenshots.mjs` drives the real UI in Chromium — upload, analysis, job match, an accepted recommendation, a named version, two exports — and screenshots each screen, so an image cannot show a screen that does not work. `report_page.py` seeds its own account, exports an analysis report and rasterises its first page, so the README shows the artefact a user downloads rather than a mock of it.
 
 Measurements are taken with the CPU boosted: on an idling laptop the same code reports 2.7 ms for a parse it measures at 0.84 ms at full clock, which is host state, not a regression. The scripts report what they observe and the README quotes the ratio where the absolute number would mislead.
 
