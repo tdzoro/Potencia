@@ -41,6 +41,19 @@ services:
       timeout: 3s
       retries: 12
 
+  # ClamAV daemon for scanning uploaded documents (PDF, DOCX) before storage and extraction.
+  clamav:
+    image: clamav/clamav:latest
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping 5 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
   api:
     build:
       context: ./backend
@@ -53,6 +66,26 @@ services:
       POTENCIA_CORS_ORIGINS: "http://localhost:5173,http://localhost:8080"
       POTENCIA_LOG_LEVEL: ${POTENCIA_LOG_LEVEL:-INFO}
       POTENCIA_REDIS_URL: redis://redis:6379/0
+      POTENCIA_CLAMAV_ENABLED: ${POTENCIA_CLAMAV_ENABLED:-true}
+      POTENCIA_CLAMAV_HOST: clamav
+      POTENCIA_CLAMAV_PORT: 3310
+      POTENCIA_CLAMAV_TIMEOUT_SECONDS: 10
+      POTENCIA_CLAMAV_REQUIRED: ${POTENCIA_CLAMAV_REQUIRED:-false}
+      POTENCIA_OCR_ENABLED: ${POTENCIA_OCR_ENABLED:-true}
+      POTENCIA_OCR_LANGUAGE: ${POTENCIA_OCR_LANGUAGE:-eng}
+      POTENCIA_OCR_TIMEOUT_SECONDS: ${POTENCIA_OCR_TIMEOUT_SECONDS:-30}
+      POTENCIA_OCR_DPI: ${POTENCIA_OCR_DPI:-200}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      POTENCIA_EMAIL_VERIFICATION_REQUIRED: ${POTENCIA_EMAIL_VERIFICATION_REQUIRED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@potencia.local}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-POTENCIA}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
     ports:
       - "8000:8000"
     depends_on:

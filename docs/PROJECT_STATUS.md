@@ -1,7 +1,7 @@
 # Project status
 
 **Last updated:** 1 November 2026
-**Current phase:** 20 complete — verified screens, regenerated figures, honest copy
+**Current phase:** 21 complete — OCR, malware scanning, recovery and optional AI integrated
 **Methodology version:** 1.0.0
 
 ---
@@ -118,6 +118,21 @@ Figures refreshed from a live run on 1 November 2026: analysis p50 **16.7 ms** (
 
 **PASS.**
 
+### Phase 21 — Integration of OCR, malware scanning, recovery and optional AI
+
+**PASS.** Sixteen commits landed on `origin/main` while the README work was still local. They were merged rather than overwritten, and every published figure was re-verified against the merged tree:
+
+- **OCR fallback** — Tesseract plus OpenCV preprocessing, engaged only when the PDF's text layer is unusable, with word-level confidence feeding the existing extraction confidence.
+- **ClamAV scanning** — uploads streamed through the daemon's `INSTREAM` protocol before storage; fail-closed in production and when `POTENCIA_CLAMAV_REQUIRED=true`.
+- **Email verification and password recovery** — SHA-256-hashed single-use tokens, non-enumerating responses, hermetic in-memory delivery when SMTP is unset.
+- **Optional Gemini rewrites** — schema-validated proposals behind the existing provider seam; never in the scoring path, always falling back to the deterministic rules.
+
+**Verified after the merge:** 242 backend tests collected with 0 failures, 33 Vitest component tests, 15 Playwright journeys, 37 API operations across 29 paths, and a green production build.
+
+**Corrected:** the QA report predated the merge and carried the older suite size (234 tests, 19 unit, 14 journeys, 36 operations), and it repeated the stale "27 criteria". All counts and the criteria total now match the code. The README gained sections for the document-hardening pipeline, OCR, and the optional AI provider, and the limitations that no longer apply were removed rather than left to age.
+
+**PASS.**
+
 ---
 
 ## Verified end to end
@@ -133,10 +148,8 @@ Browser journey verified in Chrome: score rendered from the DOM, acceptance pers
 | ID | Issue | Severity | Notes |
 |:--|:--|:--|:--|
 | KI-1 | Weights not empirically validated | Medium | Harness shows the shipped vector is not beaten by alternatives on rubric fixtures; that is a floor, not a study |
-| KI-2 | No LLM provider | Low | Deliberate; seam exists and validates any rewrite |
-| KI-4 | No malware scanning on uploads | Medium | Type and size checked only |
-| KI-5 | No email verification flow | Low | Field stored, no mail sent |
-| KI-6 | OCR engine not installed | Low | Scanned documents are detected and labelled `ocr_not_performed`, never silently scored |
+| KI-7 | OCR quality depends on scan quality | Low | Low-confidence scans lower extraction confidence and cap the ATS estimate instead of producing a confident report |
+| KI-8 | AI rewrites are only as good as the provider | Low | Optional, schema-validated, and never allowed to change a score; deterministic rules are the fallback |
 **Resolved in Phase 17:** per-process-only rate limits, missing export history, absent browser automation, unverified click-through of the match view, manual-only retention (now scheduled in compose), multi-version resumes (now labelled with comparison), a `500` on a malformed `parent_id`, and export rows mislabelled with an expiry as a generation time.
 
 ---

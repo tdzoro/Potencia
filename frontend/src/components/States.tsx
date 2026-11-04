@@ -26,6 +26,16 @@ export function ErrorNotice({
     <div className="panel border-rose-400/30 p-5" role="alert">
       <p className="text-sm font-semibold text-rose-200">{title}</p>
       <p className="mt-2 text-sm text-muted">{message}</p>
+      {api?.details && api.details.length > 0 ? (
+        <ul className="mt-2 space-y-1 text-xs text-rose-300">
+          {api.details.map((d, i) => (
+            <li key={i}>
+              {d.field ? <span className="font-semibold">{d.field}: </span> : null}
+              {typeof d.meta?.message === 'string' ? d.meta.message : (d.issue || '')}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {api?.requestId ? (
         <p className="mt-2 font-mono text-[11px] text-muted/70">request {api.requestId}</p>
       ) : null}

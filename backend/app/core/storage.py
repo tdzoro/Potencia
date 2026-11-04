@@ -9,6 +9,7 @@ where the bytes land.
 from __future__ import annotations
 
 import hashlib
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -43,8 +44,21 @@ class LocalObjectStore:
         digest = hashlib.sha256(data).hexdigest()
         key = f"{prefix}{digest[:2]}/{digest}{suffix}"
         path = self._safe_path(key)
+        
+        # Ensure parent directories exist with restrictive directory permissions (0o700)
         path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.chmod(path.parent, 0o700)
+        except OSError:
+            pass
+
+        # Write data and enforce restrictive file permissions (0o600)
         path.write_bytes(data)
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+
         return key, digest
 
     def get(self, key: str) -> bytes:

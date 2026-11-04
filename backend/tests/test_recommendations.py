@@ -7,8 +7,7 @@ rather than invent, and that an edit can never overwrite the original parse.
 from __future__ import annotations
 
 import io
-
-import fitz
+import pymupdf as fitz
 from fastapi.testclient import TestClient
 
 RESUME_TEXT = """ARJUN MEHTA

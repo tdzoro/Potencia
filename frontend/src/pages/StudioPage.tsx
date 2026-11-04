@@ -72,11 +72,13 @@ export function StudioPage() {
     setSkillsDraft(copy.skills.explicit.join(', '))
     setTechnologiesDraft(
       Object.fromEntries(
-        copy.projects.map((project, index) => [index, project.technologies.join(', ')]),
+        (copy.projects ?? []).map((project, index) => [index, (project.technologies ?? []).join(', ')]),
       ),
     )
     setDetailsDraft(
-      Object.fromEntries(copy.education.map((entry, index) => [index, entry.details.join('\n')])),
+      Object.fromEntries(
+        (copy.education ?? []).map((entry, index) => [index, (entry.details ?? []).join('\n')]),
+      ),
     )
   }, [current?.id, current?.content])
 
@@ -170,10 +172,12 @@ export function StudioPage() {
       list.push('Skills list')
     }
 
-    const projectCount = Math.max(baseline.projects.length, working.projects.length)
+    const baseProjects = baseline.projects ?? []
+    const workProjects = working.projects ?? []
+    const projectCount = Math.max(baseProjects.length, workProjects.length)
     for (let projectIndex = 0; projectIndex < projectCount; projectIndex += 1) {
-      const baseProject = baseline.projects[projectIndex]
-      const workProject = working.projects[projectIndex]
+      const baseProject = baseProjects[projectIndex]
+      const workProject = workProjects[projectIndex]
       const name = workProject?.name ?? baseProject?.name ?? `Project ${projectIndex + 1}`
 
       if ((baseProject?.name ?? '') !== (workProject?.name ?? '')) {
@@ -198,10 +202,12 @@ export function StudioPage() {
       }
     }
 
-    const educationCount = Math.max(baseline.education.length, working.education.length)
+    const baseEducation = baseline.education ?? []
+    const workEducation = working.education ?? []
+    const educationCount = Math.max(baseEducation.length, workEducation.length)
     for (let entryIndex = 0; entryIndex < educationCount; entryIndex += 1) {
-      const baseEntry = baseline.education[entryIndex]
-      const workEntry = working.education[entryIndex]
+      const baseEntry = baseEducation[entryIndex]
+      const workEntry = workEducation[entryIndex]
       const name = workEntry?.institution ?? baseEntry?.institution ?? `Education ${entryIndex + 1}`
 
       if ((baseEntry?.institution ?? '') !== (workEntry?.institution ?? '')) {
@@ -316,11 +322,13 @@ export function StudioPage() {
     setSkillsDraft(copy.skills.explicit.join(', '))
     setTechnologiesDraft(
       Object.fromEntries(
-        copy.projects.map((project, index) => [index, project.technologies.join(', ')]),
+        (copy.projects ?? []).map((project, index) => [index, (project.technologies ?? []).join(', ')]),
       ),
     )
     setDetailsDraft(
-      Object.fromEntries(copy.education.map((entry, index) => [index, entry.details.join('\n')])),
+      Object.fromEntries(
+        (copy.education ?? []).map((entry, index) => [index, (entry.details ?? []).join('\n')]),
+      ),
     )
     save.reset()
   }
@@ -630,7 +638,7 @@ export function StudioPage() {
               className="mt-2 w-full rounded-xl border border-line bg-void/60 px-3 py-2 text-sm text-ink focus:border-electric"
               placeholder="Python, PostgreSQL, Docker"
             />
-            {working.skills.inferred.length > 0 ? (
+            {(working.skills.inferred ?? []).length > 0 ? (
               <div className="mt-3">
                 <p className="text-xs text-muted">
                   Inferred from your prose, not edited here: {working.skills.inferred.map((skill) => skill.name).join(', ')}

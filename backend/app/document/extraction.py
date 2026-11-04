@@ -5,9 +5,9 @@ order and a confidence figure the scoring engine can act on. Where extraction is
 weak the result says so, because a low-confidence parse that reports itself as
 clean produces confidently wrong advice downstream.
 
-OCR is not performed. No OCR engine is installed, and claiming `ocr_used=True`
-without running one would be a fabricated success. Scanned documents are
-reported as `partial` with an explicit warning instead.
+For PDFs with insufficient or missing native text layers (scanned documents or
+image-dominant pages), the extractor automatically engages the OCR engine
+(Tesseract + OpenCV preprocessing) while leaving ordinary text-based PDFs untouched.
 """
 
 from __future__ import annotations
@@ -15,14 +15,16 @@ from __future__ import annotations
 import io
 import math
 
-import fitz  # PyMuPDF
+import pymupdf as fitz
 from docx import Document as load_docx
 
+from app.core.config import get_settings
+from app.document.ocr import ocr_pdf
 from app.document.validation import DOCX_MEDIA_TYPE, PDF_MEDIA_TYPE
 from app.intelligence.normalization import normalize_whitespace
 from app.schemas.resume import ExtractionResult
 
-# Below this many characters per page a PDF is treated as image-dominant.
+# Below this many characters per page a PDF is treated as image-dominant / scanned.
 _LOW_TEXT_PER_PAGE = 120
 # Characters per page at which extraction is considered fully confident.
 _GOOD_TEXT_PER_PAGE = 600
@@ -39,6 +41,8 @@ def _confidence(text_chars: int, page_count: int) -> float:
 
 def _extract_pdf(data: bytes) -> ExtractionResult:
     warnings: list[str] = []
+    settings = get_settings()
+
     try:
         document = fitz.open(stream=data, filetype="pdf")
     except Exception:
@@ -70,6 +74,41 @@ def _extract_pdf(data: bytes) -> ExtractionResult:
         document.close()
 
     text_chars = len(text.strip())
+    per_page = text_chars / max(1, page_count)
+
+    # Scanned document detection: either completely empty native layer or
+    # sparse text on image-dominant pages.
+    is_scanned_candidate = (text_chars == 0) or (per_page < _LOW_TEXT_PER_PAGE and image_only_pages > 0)
+
+    if is_scanned_candidate and settings.ocr_enabled:
+        ocr_res = ocr_pdf(data)
+        ocr_chars = len(ocr_res.text.strip())
+
+        # If OCR recovered text (or more text than native extraction), use OCR result
+        if ocr_chars > 0 and ocr_chars >= text_chars:
+            return ExtractionResult(
+                text=normalize_whitespace(ocr_res.text),
+                page_count=page_count,
+                method="ocr",
+                confidence=ocr_res.confidence,
+                ocr_used=True,
+                warnings=ocr_res.warnings,
+            )
+        elif text_chars == 0:
+            # OCR failed or returned no text
+            combined_warnings = ["no_text_layer"]
+            for w in ocr_res.warnings:
+                if w not in combined_warnings:
+                    combined_warnings.append(w)
+            return ExtractionResult(
+                text="",
+                page_count=page_count,
+                method="failed",
+                confidence=0.0,
+                ocr_used=ocr_res.ocr_used,
+                warnings=combined_warnings,
+            )
+
     confidence = _confidence(text_chars, page_count)
 
     if text_chars == 0:
@@ -79,11 +118,10 @@ def _extract_pdf(data: bytes) -> ExtractionResult:
             method="failed",
             confidence=0.0,
             ocr_used=False,
-            warnings=["no_text_layer", "ocr_not_performed"],
+            warnings=["no_text_layer", "ocr_disabled" if not settings.ocr_enabled else "ocr_not_performed"],
         )
 
     method: str = "text_layer"
-    per_page = text_chars / max(1, page_count)
     if per_page < _LOW_TEXT_PER_PAGE:
         method = "partial"
         warnings.append("low_text_density")

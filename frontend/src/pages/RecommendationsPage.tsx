@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '../components/Badge'
 import { EmptyState, ErrorNotice, LoadingState, PageHeader } from '../components/States'
-import { decideRecommendation, getReport, listRecommendations } from '../services/analyses'
+import { decideRecommendation, getReport, listRecommendations, regenerateRecommendation } from '../services/analyses'
 import type { Recommendation } from '../types/domain'
 
 const priorityTone = (priority: Recommendation['priority']) =>
@@ -57,6 +57,13 @@ export function RecommendationsPage() {
     onSuccess: async () => {
       setEditingId(null)
       setDraft('')
+      await queryClient.invalidateQueries({ queryKey: ['recommendations', analysisId] })
+    },
+  })
+
+  const regenerate = useMutation({
+    mutationFn: (recommendationId: string) => regenerateRecommendation(recommendationId),
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['recommendations', analysisId] })
     },
   })
@@ -181,6 +188,7 @@ export function RecommendationsPage() {
             {group.rows.map((item) => {
               const decided = item.state !== 'pending'
               const isEditing = editingId === item.id
+              const isRegenerating = regenerate.isPending && regenerate.variables === item.id
               const needsFact = !item.proposed_text && item.requires_user_input.length > 0
 
               return (
@@ -188,6 +196,14 @@ export function RecommendationsPage() {
                   <div className="flex flex-wrap items-center gap-2 border-b border-line/70 px-5 py-3">
                     <Badge tone="info">{CATEGORY_LABELS[item.category]}</Badge>
                     <Badge tone={priorityTone(item.priority)}>{item.priority}</Badge>
+                    {item.source === 'gemini' ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-400/10 px-2.5 py-0.5 text-xs font-medium text-sky-300">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
+                        AI · Gemini rewrite
+                      </span>
+                    ) : (
+                      <Badge tone="neutral">Rule-based</Badge>
+                    )}
                     <Badge tone="neutral">confidence {item.confidence}</Badge>
                     {item.state !== 'pending' ? <Badge tone={stateTone(item.state)}>{item.state}</Badge> : null}
                     {item.finding_id ? (
@@ -199,14 +215,26 @@ export function RecommendationsPage() {
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div>
                         <p className="label">Original</p>
-                        <p className="mt-2 whitespace-pre-wrap rounded-lg bg-white/5 p-3 text-sm text-muted">
+                        <p className="mt-2 whitespace-pre-wrap rounded-lg bg-white/5 p-3 text-sm text-muted border border-transparent">
                           {item.original_text ?? 'No specific line was cited.'}
                         </p>
                       </div>
                       <div>
-                        <p className="label">Proposed</p>
+                        <div className="flex items-center justify-between">
+                          <p className="label">Proposed</p>
+                          {item.source === 'gemini' ? (
+                            <span className="text-[11px] font-medium text-sky-400">Gemini AI Suggestion</span>
+                          ) : null}
+                        </div>
                         <p className="mt-2 whitespace-pre-wrap rounded-lg border border-electric/30 bg-electric/5 p-3 text-sm text-ink">
-                          {item.proposed_text ?? (needsFact ? 'Waiting for your input.' : 'No rewrite — see the fix below.')}
+                          {isRegenerating ? (
+                            <span className="flex items-center gap-2 text-muted italic">
+                              <span className="inline-block h-2 w-2 animate-spin rounded-full border border-electric border-t-transparent" />
+                              Generating new proposal with Gemini…
+                            </span>
+                          ) : (
+                            item.proposed_text ?? (needsFact ? 'Waiting for your input.' : 'No rewrite — see the fix below.')
+                          )}
                         </p>
                       </div>
                     </div>
@@ -223,7 +251,7 @@ export function RecommendationsPage() {
                       </div>
                     ) : null}
 
-                    {item.requires_user_input.length > 0 ? (
+                    {item.requires_user_input && item.requires_user_input.length > 0 ? (
                       <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
                           We will not invent this
@@ -240,6 +268,12 @@ export function RecommendationsPage() {
                           ))}
                         </ul>
                       </div>
+                    ) : null}
+
+                    {regenerate.isError && regenerate.variables === item.id ? (
+                      <p className="text-xs text-amber-300">
+                        AI rewrite is temporarily unavailable. Deterministic rule advice is retained.
+                      </p>
                     ) : null}
 
                     {isEditing ? (
@@ -283,7 +317,7 @@ export function RecommendationsPage() {
                         <button
                           type="button"
                           className="btn-primary"
-                          disabled={decided || decision.isPending}
+                          disabled={decided || decision.isPending || isRegenerating}
                           onClick={() => decision.mutate({ recommendationId: item.id, decision: 'accept' })}
                         >
                           Accept
@@ -291,7 +325,7 @@ export function RecommendationsPage() {
                         <button
                           type="button"
                           className="btn-ghost"
-                          disabled={decided || decision.isPending}
+                          disabled={decided || decision.isPending || isRegenerating}
                           onClick={() => decision.mutate({ recommendationId: item.id, decision: 'reject' })}
                         >
                           Reject
@@ -299,7 +333,7 @@ export function RecommendationsPage() {
                         <button
                           type="button"
                           className="btn-ghost"
-                          disabled={decided || decision.isPending}
+                          disabled={decided || decision.isPending || isRegenerating}
                           onClick={() => {
                             setEditingId(item.id)
                             setDraft(item.proposed_text ?? item.original_text ?? '')
@@ -307,6 +341,17 @@ export function RecommendationsPage() {
                         >
                           Edit
                         </button>
+                        {item.original_text && !decided ? (
+                          <button
+                            type="button"
+                            className="btn-ghost text-xs text-sky-400 hover:text-sky-300"
+                            disabled={isRegenerating || decision.isPending}
+                            onClick={() => regenerate.mutate(item.id)}
+                            title="Generate a fresh rewrite suggestion with Gemini AI"
+                          >
+                            {isRegenerating ? 'Generating…' : '✨ Regenerate suggestion'}
+                          </button>
+                        ) : null}
                         {item.state === 'accepted' && resumeId ? (
                           <Link to={`/app/resumes/${resumeId}/studio`} className="btn-ghost ml-auto">
                             Apply in studio
@@ -327,7 +372,7 @@ export function RecommendationsPage() {
           Back to the report
         </Link>
         <span className="text-xs text-muted">
-          Severity follows the scoring finding; the score itself is never changed by a decision.
+          Severity follows the scoring finding; the score itself is never changed by a decision or AI proposal.
         </span>
       </div>
     </div>

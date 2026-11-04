@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import io
 import zipfile
-
-import fitz
+import pymupdf as fitz
 import pytest
 from docx import Document as DocxDocument
 

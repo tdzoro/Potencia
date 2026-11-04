@@ -21,8 +21,10 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # ConfigParser treats "%" as interpolation; passwords may contain it.
-_database_url = get_settings().database_url.replace("%", "%%")
-config.set_main_option("sqlalchemy.url", _database_url)
+# Use custom sqlalchemy.url if explicitly set, otherwise read from application settings.
+if not config.get_main_option("sqlalchemy.url"):
+    _database_url = get_settings().database_url.replace("%", "%%")
+    config.set_main_option("sqlalchemy.url", _database_url)
 
 target_metadata = Base.metadata
 
@@ -34,6 +36,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        render_as_batch=True,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -50,6 +53,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
+            render_as_batch=True,
         )
         with context.begin_transaction():
             context.run_migrations()

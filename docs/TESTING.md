@@ -3,9 +3,10 @@
 ## Running the suites
 
 ```bash
-cd backend && pytest -q          # 150 tests, hermetic
+cd backend && pytest -q          # 242 tests, hermetic
+cd frontend && npm test          # 33 component/form tests (Vitest)
 cd frontend && npm run build     # strict typecheck + production build
-cd frontend && npm run e2e       # 11 browser tests, needs a live stack
+cd frontend && npm run e2e       # 15 browser journeys, needs a live stack
 ```
 
 The backend suite needs no PostgreSQL, no network and no AI provider: it runs on an in-memory SQLite database per test, with uploads in a temporary directory. The browser suite needs a running API and a built web app; it seeds its own account, so it never depends on data already in a database.
@@ -32,6 +33,13 @@ The backend suite needs no PostgreSQL, no network and no AI provider: it runs on
 | Performance | `test_performance.py` | Heading table ordered once at import, 1,400 classifications inside a loose budget, one document read per match (not one per requirement), 40-requirement match inside budget, eight-document parse inside budget, normalisation actually cached |
 | Versions | `test_versions.py` | Labels stored and returned, unlabelled stays null, malformed `parent_id` is `422` not `500`, over-length label rejected, field-level comparison including projects and education, identical versions report no changes, cross-resume and cross-account comparison is `404` |
 | Retention | `test_retention.py` | Expired file and row both removed, download link stops serving, unexpired export survives, an expired row without bytes still goes |
+| Document hardening | `test_secure_document_processing.py` | Magic bytes, path traversal, ZIP-bomb ratio, encrypted PDFs, macros, EICAR detection, fail-closed scanning |
+| OCR fallback | `test_ocr.py` | Text-layer bypass, scanned-page detection, preprocessing, confidence aggregation, low-confidence warning, timeout |
+| Verification and recovery | `test_verification_and_recovery.py` | Hashed tokens, expiry, replay, non-enumerating responses, reset flow |
+| Tenant isolation | `test_tenant_isolation.py` | A second user gets `404` on every resource of the first, across resumes, revisions, analyses, jobs, matches and exports |
+| Migrations | `test_migrations.py` | Programmatic Alembic `upgrade → downgrade → upgrade` round trip |
+| AI provider | `test_gemini_provider.py` | Schema validation, prompt-injection delimiting, rate-limit and timeout fallbacks; a live call only when a key is supplied |
+| ATS boundaries | `test_ats_boundaries.py` | Bounds `[0, 100]` and reconciliation on empty, single-word and oversized documents |
 
 ## Tests that would fail if the product lied
 
@@ -64,7 +72,7 @@ The suite found a real gap when first run: the landing page had no route to sign
 
 ## Migrations
 
-The backend suite does not exercise Alembic. CI applies `upgrade head → downgrade base → upgrade head` against a real PostgreSQL 16 service container, which catches a migration that is missing, out of order or irreversible.
+`test_migrations.py` runs `upgrade head → downgrade -1 → upgrade head` programmatically against SQLite on every suite run, which catches a migration that is missing, out of order or irreversible. CI repeats the round trip against a real PostgreSQL 16 service container, where the dialect differences actually live.
 
 ```bash
 cd backend
@@ -99,6 +107,8 @@ PYTHONPATH=backend:. backend/.venv/bin/python scripts/report_page.py
 Measurements are taken with the CPU boosted: on an idling laptop the same code reports 2.7 ms for a parse it measures at 0.84 ms at full clock, which is host state, not a regression. The scripts report what they observe and the README quotes the ratio where the absolute number would mislead.
 
 ## Frontend checks
+
+`npm test` runs 33 Vitest + Testing Library tests across four files: login, registration, verification and recovery forms; upload validation and the OCR badge; the studio empty state and editor; recommendations, AI regeneration and export links.
 
 `npm run typecheck` is the gate: `src/types/domain.ts` mirrors `docs/API.md`, so a contract drift breaks compilation instead of surfacing as a blank panel at runtime. `npm run build` runs it before bundling.
 

@@ -52,3 +52,25 @@ class TokenPair(BaseModel):
 class AuthResponse(BaseModel):
     user: UserOut
     tokens: TokenPair
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=256)
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=256)
+
+
+class MessageResponse(BaseModel):
+    message: str
+    email: EmailStr | None = None

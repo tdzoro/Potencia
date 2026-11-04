@@ -26,6 +26,7 @@ class RewriteProposal(BaseModel):
     proposed_text: str = Field(min_length=1, max_length=2000)
     confidence: str = "medium"
     provider: str
+    requires_user_input: list[dict[str, str]] = Field(default_factory=list)
 
 
 class RewriteProvider(Protocol):

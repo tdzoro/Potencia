@@ -30,8 +30,10 @@ flowchart LR
     API --> SVC["Application services"]
     SVC --> INT["Intelligence engine"]
     SVC --> DOC["Document processing"]
+    SVC --> SCAN["Malware scanner (ClamAV)"]
     SVC --> AIL["AI provider abstraction"]
     AIL -->|"outbound HTTPS"| LLM["External LLM provider"]
+    SCAN -->|"TCP INSTREAM"| CLAMD["ClamAV Daemon"]
     SVC --> DB[("PostgreSQL")]
     SVC --> OBJ[("Document storage")]
     W["Task runner"] --> SVC
@@ -83,23 +85,53 @@ A router that needs two service calls in sequence is a signal the workflow belon
 
 | | |
 |:--|:--|
-| **Responsibility** | Validation, extraction, OCR fallback, page/geometry analysis, export rendering |
-| **Owns** | `extraction/`, `validation/`, `ocr/`, `export/` |
+| **Responsibility** | Validation, text extraction, automatic OCR fallback, page/geometry analysis, export rendering |
+| **Owns** | `extraction.py`, `validation.py`, `ocr.py`, `export/` |
 | **Never does** | Know what a score is, read a `Resume` model, or call the intelligence engine |
 | **May import** | `core` and its own subpackages |
 
-`document/` returns text plus geometry plus confidence. It has no opinion about quality — that separation is what lets extraction be tested against fixtures without any scoring machinery existing.
+`document/` returns text plus geometry plus confidence. It extracts native text directly where available; for scanned or image-dominant PDFs, it automatically executes OpenCV preprocessing (grayscale, noise reduction, CLAHE contrast enhancement, Otsu binarization, deskewing) and Tesseract OCR. Ordinary text PDFs bypass OCR entirely.
 
-### 3.5 `ai/` — generation
+### 3.5 `services/ocr_service.py` — OCR facade
+Exposes modular OCR routines (`ocr_pdf`, `ocr_image`, `preprocess_image`, `deskew_image`) to the document pipeline.
+
+### 3.5 i/ — generation
 
 | | |
 |:--|:--|
 | **Responsibility** | Provider adapters, prompt versioning, structured-output validation, retry and timeout policy, prompt-injection containment |
-| **Owns** | `providers/`, `prompts/`, `schemas/`, `orchestration/` |
+| **Owns** | providers/ (gemini.py, ase.py), prompts/, schemas/, orchestration/ |
 | **Never does** | Compute or adjust a numeric score, decide which findings exist, or receive raw document bytes |
-| **May import** | `core` and its own subpackages |
+| **May import** | core and its own subpackages |
 
-### 3.6 `core/` — cross-cutting
+i/ encapsulates optional external AI rewrite providers (such as Google Gemini via GeminiRewriteProvider). Untrusted resume text is isolated inside <untrusted_resume_content> delimiters with strict anti-hallucination rules. Output is validated against Pydantic schemas and cached in an in-memory LRU cache. When unconfigured, NullRewriteProvider ensures transparent deterministic fallback without breaking any workflow.
+
+### 3.7 `services/malware_scanner.py` & Document Security
+
+| | |
+|:--|:--|
+| **Responsibility** | Pre-storage malware scanning, container safety inspection, format validation |
+| **Owns** | Native ClamAV `INSTREAM` protocol client, EICAR detection, container validation rules |
+| **Never does** | Parse resume contents, touch database rows, expose internal filesystem keys |
+| **May import** | `core` |
+
+Upload processing executes an atomic 12-step sequence: streaming upload limits (5 MiB), filename sanitization, signature and magic byte checking (`%PDF-`, `PK`), PDF structure inspection (page count <= 50, encryption rejection, attachment safety), DOCX archive inspection (entries <= 1000, no path traversal in entries, compression ratio <= 100:1, macro rejection), ClamAV malware scan (fail-closed in production), content-addressed storage (`0o600` permissions), text extraction, and cleanup upon post-storage failures.
+
+### 3.8 `services/email_service.py` & Authentication Security
+
+| | |
+|:--|:--|
+| **Responsibility** | Dual-mode outbound email dispatch (SMTP + in-memory test queue), branded responsive HTML email templating, verification & recovery token delivery |
+| **Owns** | SMTP connection management over SSL/TLS, fallback queue `_SENT_EMAILS`, email layouts |
+| **Never does** | Persist raw tokens, log credentials or tokens, crash user requests on transient SMTP outages |
+| **May import** | `core` |
+
+The authentication lifecycle incorporates:
+- **Registration**: Issues credentials, records user as unverified, generates a cryptographically random 32-byte verification token (`secrets.token_urlsafe(32)`), persists its SHA-256 digest in `auth_tokens`, and dispatches a verification email.
+- **Verification (`/api/v1/auth/verify-email`)**: Hashes the token, looks up unconsumed, unexpired token, marks user `email_verified=True`, consumes the token (`used_at`), and invalidates previous pending tokens.
+- **Password Recovery (`/api/v1/auth/forgot-password` & `/reset-password`)**: Generic anti-enumeration response on forgot-password, one-time hashed token with 60-minute expiry, password update with minimum 12 characters, and `token_version` increment revoking all existing refresh tokens.
+
+### 3.9 `core/` — cross-cutting
 
 | | |
 |:--|:--|
@@ -286,6 +318,7 @@ erDiagram
     USER ||--o{ RESUME : owns
     USER ||--o{ JOB : owns
     USER ||--o{ REFRESH_TOKEN : holds
+    USER ||--o{ AUTH_TOKEN : issues
     RESUME ||--o{ RESUME_REVISION : has
     RESUME ||--o{ ANALYSIS : analysed_by
     RESUME ||--o{ MATCH : matched_in
@@ -301,6 +334,15 @@ erDiagram
         string password_hash
         string display_name
         boolean email_verified
+        datetime created_at
+    }
+    AUTH_TOKEN {
+        uuid id PK
+        uuid user_id FK
+        string token_hash UK
+        string token_type
+        datetime expires_at
+        datetime used_at
         datetime created_at
     }
     RESUME {
@@ -646,3 +688,19 @@ GitHub Actions secrets, branch protection rules and deployment environments requ
 **Context.** When a dependency fails, the tempting move is to fill the gap with a default — score the missing category as zero, or generate a placeholder recommendation.
 **Decision.** Missing input removes weight from the denominator; missing provider output removes recommendations and says so; unextractable documents fail outright rather than score as empty.
 **Consequences.** Some runs return less than a user hoped for, and `applicable_weight` complicates the arithmetic. In return, no user ever acts on a number derived from data we did not have.
+
+### ADR-09 — Concurrent AI Proposal Pre-Fetching with Bounded Worker Pool
+
+**Context.** In Phase 20, generating AI rewrite proposals for multiple high-priority recommendations sequentially created a noticeable latency bottleneck on cold requests.
+**Decision.** In Phase 24, `recommendation_service.py` executes AI proposal generation for top priority candidates concurrently using `concurrent.futures.ThreadPoolExecutor(max_workers=5)` bounded by a strict 10-second timeout. Any failed, timed-out, or rate-limited candidate falls back instantly to deterministic rules.
+**Consequences.** Cold request latency is reduced up to 5x. If the external provider is slow or unavailable, deterministic rules are returned without delaying the user experience.
+
+### ADR-10 — Multi-Tier Testing Architecture
+
+**Context.** Complex interactions between FastAPI services, background tasks, database migrations, security rules, and React UI require distinct testing horizons to prevent regressions.
+**Decision.** Establish four discrete, hermetic testing tiers:
+1. **Backend Unit & Integration (Pytest):** 234 tests covering auth, token verification hashing, ClamAV malware scanning, OCR extraction, deterministic ATS arithmetic, cross-tenant 404 isolation, and programmatic Alembic migration round-trips.
+2. **Frontend Unit & Component (Vitest + Testing Library):** 19 tests in jsdom testing accessible DOM rendering, form validation, error states, and mutation workflows.
+3. **End-to-End User Journeys (Playwright):** 14 complete user journeys verifying browser flows against the integrated full stack.
+4. **Deterministic Profiling & Benchmarking:** Automated profiling harness (`scripts/profile_engine.py`) verifying latency and sub-linear scaling invariants.
+**Consequences.** Comprehensive test coverage without external network requirements; regressions are caught at the lowest feasible level.

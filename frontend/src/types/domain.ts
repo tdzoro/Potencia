@@ -329,6 +329,7 @@ export interface Recommendation {
   requires_user_input: UserInputPrompt[]
   confidence: Confidence
   state: 'pending' | 'accepted' | 'rejected' | 'edited'
+  source?: 'rules' | 'gemini' | string
   decided_at: string | null
 }
 

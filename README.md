@@ -6,8 +6,8 @@
 
 **AI Resume Intelligence — deterministic scoring, ATS compatibility, job matching, and edits you approve.**
 
-[![Tests](https://img.shields.io/badge/tests-150%20backend%20%C2%B7%2011%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
-[![API](https://img.shields.io/badge/API-32%20operations-22D3EE?style=flat-square)](docs/API.md)
+[![Tests](https://img.shields.io/badge/tests-242%20backend%20%C2%B7%2033%20unit%20%C2%B7%2015%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![API](https://img.shields.io/badge/API-37%20operations-22D3EE?style=flat-square)](docs/API.md)
 [![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
 [![Engine](https://img.shields.io/badge/pipeline-2.12%20ms%20p50-0EA5E9?style=flat-square)](docs/PROJECT_STATUS.md)
 [![Licence](https://img.shields.io/badge/licence-proprietary-9AA3C7?style=flat-square)](LICENSE)
@@ -31,8 +31,12 @@ POTENCIA is built on a single constraint: **the score is arithmetic over evidenc
 
 ```mermaid
 flowchart LR
-    A[Upload<br/>PDF · DOCX] --> B[Extract<br/>text layer · confidence]
-    B --> C[Parse<br/>sections · entities]
+    A[Upload<br/>PDF · DOCX] --> S[ClamAV scan<br/>fail-closed]
+    S --> B[Extract<br/>text layer]
+    B --> Q{Text layer<br/>sufficient?}
+    Q -- no --> O[Tesseract OCR<br/>OpenCV preprocess]
+    Q -- yes --> C[Parse<br/>sections · entities]
+    O --> C
     C --> D[Score<br/>30 criteria]
     C --> E[ATS<br/>structural checks]
     C --> F[Match<br/>requirements]
@@ -146,6 +150,38 @@ One resume — 87 words, 2 roles, 4 bullets, 7 listed skills — through the fin
 </table>
 
 The report reconciles with itself: the 13 findings' impacts sum to **17.4 points**, which is exactly `100 − 82.6`. That identity is a test, not a claim — if the findings stop explaining the score, the suite fails.
+
+---
+
+## Documents are hostile until proven otherwise
+
+A resume upload is untrusted binary data, so it is treated that way before any text is read.
+
+| Stage | What happens |
+|:--|:--|
+| Identity | Extension, magic bytes and MIME must agree; a renamed executable is rejected |
+| Malware | Streamed to ClamAV over its `INSTREAM` protocol before storage; infected uploads never reach the parser |
+| Container abuse | Caps on PDF pages, DOCX archive entries and compression ratio; encrypted PDFs, macros and embedded executables are refused |
+| Filename | Path traversal, null bytes, control characters and reserved device names stripped |
+| Storage | Content-addressed by SHA-256, mode `0600`, no path ever returned to a client, bytes deleted if extraction fails |
+
+**Failure policy is the interesting part.** In production — or whenever `POTENCIA_CLAMAV_REQUIRED=true` — a scanner timeout or unreachable daemon returns `503` and the upload stops. Unscanned is not the same as clean. In development the daemon is optional, and the file is accepted with `scanned: false` recorded rather than silently assumed safe.
+
+### Scanned resumes: OCR as a fallback, not a default
+
+Text-layer extraction is tried first because it is exact. Only when a PDF has no usable text layer does the OCR path open:
+
+```mermaid
+flowchart LR
+    A[PDF] --> B{Usable text<br/>layer?}
+    B -- yes --> C[Extract directly<br/>confidence 1.0]
+    B -- no --> D[Render pages<br/>200 DPI]
+    D --> E[Grayscale · CLAHE<br/>denoise · deskew]
+    E --> F[Tesseract<br/>word confidences]
+    F --> G[Assemble in page order<br/>record mean confidence]
+```
+
+Preprocessing is not decoration: adaptive contrast (CLAHE) and deskew are what make a photographed page legible to Tesseract. Word-level confidences are averaged into the extraction confidence the scorer already uses, so a poor scan lowers every category's confidence and caps the ATS estimate instead of producing a confidently wrong report. An ordinary digital PDF never pays the OCR cost.
 
 ---
 
@@ -281,6 +317,21 @@ The original parse is **revision 0** and is never overwritten. An edit is a new 
 
 ---
 
+### Optional AI rewrites, off by default
+
+Set `GEMINI_API_KEY` and the recommendation engine may propose rewrites through `GeminiRewriteProvider` (`google-genai`). Four rules bound it:
+
+| Rule | Enforcement |
+|:--|:--|
+| **It cannot score** | No provider appears anywhere in the scoring path; a proposal never changes a criterion, category or ATS figure |
+| **It cannot invent** | Prompts forbid new employers, degrees, skills, metrics; a missing figure becomes a question for the user |
+| **It cannot be instructed by the document** | Resume text is treated as untrusted data, bounded by delimiters, and never concatenated as instructions |
+| **It cannot break the request** | Missing key, timeout, rate limit or malformed JSON falls back to the deterministic rules; proposals are schema-validated before use |
+
+Proposals are labelled with their source and remain proposals: the user accepts, edits or rejects each one in the studio. Without a key the product is fully functional and entirely rules-driven.
+
+---
+
 ## Performance, measured
 
 `scripts/profile_engine.py` times the deterministic pipeline with no HTTP, no database and no network. 200 warm runs over eight documents:
@@ -410,6 +461,9 @@ flowchart TB
 | API | FastAPI · Pydantic v2 · SQLAlchemy 2 · Alembic · Python 3.12 |
 | Data | PostgreSQL 16 · Redis (shared rate-limit counters) |
 | Documents | PyMuPDF · python-docx · text-layer extraction with scanned-PDF detection |
+| Documents | PyMuPDF · python-docx · Tesseract + OpenCV OCR fallback |
+| Hardening | ClamAV `INSTREAM` scanning · container-abuse limits · SHA-256 storage |
+| AI (optional) | Google Gemini via `google-genai`, schema-validated, never in the scoring path |
 | Delivery | Docker · Docker Compose · GitHub Actions · structured JSON logs |
 
 ### Repository map
@@ -418,6 +472,7 @@ flowchart TB
 |:--|:--|
 | `backend/app/api/` | routes, dependencies, auth guards, error envelope |
 | `backend/app/intelligence/` | parser, scoring, ATS, matching, recommendations — no network calls |
+| `backend/app/ai/providers/` | rewrite seam: deterministic null provider, optional Gemini |
 | `backend/app/document/` | validation, extraction, OCR seam, PDF/DOCX rendering |
 | `backend/app/services/` | ownership, orchestration, revisions, exports, retention |
 | `backend/tests/` | hermetic suite: parser, scoring, ATS, matching, API, security, performance |
@@ -434,8 +489,10 @@ flowchart TB
 ```bash
 git clone https://github.com/tdzoro/Potencia && cd Potencia
 cp .env.example .env            # set POTENCIA_SECRET_KEY
-docker compose up --build       # API on :8000, web on :8080
+docker compose up --build       # API :8000 · web :8080 · PostgreSQL · Redis · ClamAV :3310
 ```
+
+`GEMINI_API_KEY` and the `SMTP_*` settings are optional; without them the product runs rules-only and logs verification links instead of emailing them.
 
 Local development without Docker:
 
@@ -457,11 +514,11 @@ cd frontend && npm install && npm run dev
 
 ## API surface
 
-32 operations across 24 paths, all under `/api/v1` except health. Full contracts in [`docs/API.md`](docs/API.md).
+37 operations across 29 paths, all under `/api/v1` except health. Full contracts in [`docs/API.md`](docs/API.md).
 
 | Group | Operations |
 |:--|:--|
-| Auth | register · login · refresh · logout · me · delete account |
+| Auth | register · verify email · resend verification · login · refresh · logout · forgot password · reset password · me · delete account |
 | Resumes | upload · list · get · revisions (list, create, compare) · delete |
 | Analyses | create · list · get · report · recommendations · exports · delete |
 | Jobs & matches | create · list · get · delete · match · read |
@@ -475,10 +532,10 @@ cd frontend && npm install && npm run dev
 | Control | State |
 |:--|:--|
 | Password hashing | bcrypt, per-password salt |
-| Tokens | 15-min access JWT, 14-day refresh, revoked by `token_version` |
+| Tokens | 15-min access JWT, 14-day refresh, revoked by `token_version`; verification and reset tokens stored as SHA-256 hashes |
 | Account enumeration | Identical `401` for unknown email and wrong password |
 | Data isolation | Row-level `user_id`; another user's resource returns `404` |
-| Uploads | Extension + magic bytes + streaming size cap |
+| Uploads | Extension + magic bytes + streaming size cap + ClamAV scan |
 | Downloads | HMAC-signed, user-bound, 15-minute capability URL |
 | Rate limits | Login 5/15 min · uploads 10/h · analyses 20/h · exports 30/h |
 | Response headers | `nosniff` · `DENY` framing · `no-referrer` · strict CSP · `no-store` |
@@ -490,9 +547,10 @@ Full detail, including what is deliberately not implemented yet, is in [`docs/SE
 ## Testing
 
 ```bash
-cd backend && pytest -q          # 150 tests, no database or network required
+cd backend && pytest -q          # 242 tests, no database or network required
+cd frontend && npm test          # 33 component and form tests (Vitest + Testing Library)
 cd frontend && npm run build     # strict typecheck + production build
-cd frontend && npm run e2e       # 11 browser tests against a live stack
+cd frontend && npm run e2e       # 15 browser journeys against a live stack
 ```
 
 The browser suite seeds its own account through the API and drives the real UI: the score is asserted from the DOM, a recommendation is accepted and re-read after reload, a PDF is generated and its signed link verified, a job description produces a named gap, a revision is saved without touching the original, a named version is compared field by field, and that same version is exported by name.
@@ -515,9 +573,10 @@ Stated here rather than discovered later:
 
 - **The weights are not empirically validated.** A reproducible harness shows the shipped vector is not beaten by plausible alternatives on eight rubric-ranked fixtures; that is a floor, not a study.
 - **The ATS score simulates no specific vendor.** It measures structural parseability, the honest shared denominator.
-- **No LLM in the request path.** Recommendations are rules; the provider seam exists and validates any rewrite before use.
-- **No OCR engine installed.** Scanned PDFs are detected and reported as `partial` with `ocr_not_performed` rather than silently scored on bad text.
-- **No malware scanning** on uploads; no email verification flow.
+- **AI is optional and never scores.** Without `GEMINI_API_KEY` the engine is rules-only; with it, proposals are schema-validated and fall back to rules on any failure. The score is identical either way.
+- **OCR needs the Tesseract binary.** The API image installs it. A host install without Tesseract detects a scanned document and returns `ocr_not_performed` rather than pretending to read it.
+- **ClamAV is optional outside production.** Compose ships the daemon; if it is unreachable in development the upload is accepted and marked unscanned, while production refuses it with `503`.
+- **Email delivery needs SMTP.** Without it, verification and reset run in a hermetic in-memory mode, so links are logged rather than sent.
 - **Performance figures are single-host.** One process, one PostgreSQL; the same load script has measured 60.5 and 77.4 analyses/s on this machine at different times, and absolute engine microseconds track CPU clock. No capacity claim is made.
 - **Comparison covers summary, skills, experience bullets, projects and education.** Certifications, achievements and leadership lines are carried in every version and exported, but are not diffed field by field.
 - **Registration is limited to 5 per 15 minutes per identity**, which a shared office IP can reach.
@@ -535,6 +594,7 @@ Stated here rather than discovered later:
 | [Security](docs/SECURITY.md) | Controls, threat surface, gaps |
 | [Testing](docs/TESTING.md) | Coverage and the assertions that matter |
 | [Status](docs/PROJECT_STATUS.md) | Phase-by-phase state and known issues |
+| [QA report](docs/QA_REPORT.md) | Audit findings, remediations and measured results |
 | [Audit](docs/REPOSITORY_AUDIT.md) | The original repository assessment and what it drove |
 
 ### Reproduce every figure

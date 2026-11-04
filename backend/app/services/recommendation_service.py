@@ -1,18 +1,25 @@
 """Recommendation generation and user decisions.
 
 Generation is idempotent: asking twice returns the same rows rather than
-accumulating near-duplicates the user has to clear out.
+accumulating near-duplicates the user has to clear out. When configured, Google
+Gemini provides optional AI-assisted rewrites under strict non-fabrication rules,
+while deterministic rules serve as an immediate and reliable fallback.
 """
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError, as_completed
+import inspect
+import logging
 import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.ai.providers.base import NullRewriteProvider, RewriteProvider
+from app.ai.providers.base import NullRewriteProvider, RewriteProposal, RewriteProvider, RewriteRequest
+from app.ai.providers.gemini import GeminiRewriteProvider
+from app.core.config import get_settings
 from app.core.errors import PotenciaError
 from app.intelligence.recommendations import rules
 from app.models.analysis import Analysis, Recommendation
@@ -23,9 +30,24 @@ from app.schemas.resume import ResumeStructure
 from app.schemas.scores import Finding
 from app.services import analysis_service
 
+logger = logging.getLogger(__name__)
+
 
 def get_provider() -> RewriteProvider:
-    """No provider is configured yet; deterministic rules cover this phase."""
+    """Select the active rewrite provider.
+
+    Returns GeminiRewriteProvider if GEMINI_API_KEY is configured and available;
+    otherwise returns NullRewriteProvider.
+    """
+    settings = get_settings()
+    if settings.gemini_api_key:
+        provider = GeminiRewriteProvider(
+            api_key=settings.gemini_api_key,
+            model=settings.gemini_model,
+            timeout_seconds=settings.gemini_timeout_seconds,
+        )
+        if provider.available():
+            return provider
     return NullRewriteProvider()
 
 
@@ -59,24 +81,72 @@ def list_for_analysis(db: Session, user: User, analysis_id: uuid.UUID) -> list[R
     structure = _structure_for(db, analysis)
     generated = rules.generate(findings, structure)
 
-    rows = [
-        Recommendation(
-            user_id=user.id,
-            analysis_id=analysis.id,
-            finding_id=item.finding_id,
-            category=item.category,
-            priority=item.priority,
-            original_text=item.original_text,
-            proposed_text=item.proposed_text,
-            reason=item.reason,
-            remediation=item.remediation,
-            requires_user_input=[prompt.model_dump() for prompt in item.requires_user_input],
-            confidence=item.confidence,
-            state="pending",
-            source="rules",
+    provider = get_provider()
+    provider_available = provider.available()
+
+    # Concurrently pre-fetch AI rewrites for recommendations citing original text (capped to 5)
+    proposals_by_finding: dict[str, RewriteProposal] = {}
+    if provider_available:
+        candidates = [itm for itm in generated if itm.original_text][:5]
+        if candidates:
+            def _fetch(candidate):
+                try:
+                    return candidate.finding_id, provider.propose(
+                        RewriteRequest(
+                            original_text=candidate.original_text,
+                            reason=candidate.reason,
+                            context=f"Category: {candidate.category}",
+                        )
+                    )
+                except Exception:
+                    logger.warning("Failed to generate AI rewrite for recommendation", exc_info=True)
+                    return candidate.finding_id, None
+
+            with ThreadPoolExecutor(max_workers=min(5, len(candidates))) as executor:
+                future_to_cand = {executor.submit(_fetch, cand): cand for cand in candidates}
+                try:
+                    for future in as_completed(future_to_cand, timeout=10.0):
+                        fid, prop = future.result()
+                        if prop and prop.proposed_text:
+                            proposals_by_finding[fid] = prop
+                except (FutureTimeoutError, TimeoutError):
+                    logger.warning("AI rewrite requests exceeded concurrency deadline; degrading to rules")
+
+    rows: list[Recommendation] = []
+    for item in generated:
+        proposed_text = item.proposed_text
+        source = "rules"
+        user_inputs = [prompt.model_dump() for prompt in item.requires_user_input]
+        confidence = item.confidence
+
+        proposal = proposals_by_finding.get(item.finding_id)
+        if proposal and proposal.proposed_text:
+            proposed_text = proposal.proposed_text
+            source = proposal.provider
+            confidence = proposal.confidence
+            if proposal.requires_user_input:
+                for prompt_dict in proposal.requires_user_input:
+                    if prompt_dict not in user_inputs:
+                        user_inputs.append(prompt_dict)
+
+        rows.append(
+            Recommendation(
+                user_id=user.id,
+                analysis_id=analysis.id,
+                finding_id=item.finding_id,
+                category=item.category,
+                priority=item.priority,
+                original_text=item.original_text,
+                proposed_text=proposed_text,
+                reason=item.reason,
+                remediation=item.remediation,
+                requires_user_input=user_inputs,
+                confidence=confidence,
+                state="pending",
+                source=source,
+            )
         )
-        for item in generated
-    ]
+
     db.add_all(rows)
     db.commit()
     for row in rows:
@@ -117,6 +187,63 @@ def decide(
     return recommendation
 
 
+def regenerate(
+    db: Session,
+    user: User,
+    recommendation_id: uuid.UUID,
+) -> Recommendation:
+    """Regenerate a rewrite for an existing recommendation using the active AI provider."""
+    recommendation = db.scalar(
+        select(Recommendation).where(
+            Recommendation.id == recommendation_id,
+            Recommendation.user_id == user.id,
+        )
+    )
+    if recommendation is None:
+        raise PotenciaError("not_found", 404, "Recommendation not found.")
+
+    if not recommendation.original_text:
+        return recommendation
+
+    provider = get_provider()
+    if not provider.available():
+        raise PotenciaError(
+            "dependency_unavailable",
+            503,
+            "AI rewrite provider is not configured or unavailable.",
+        )
+
+    try:
+        req = RewriteRequest(
+            original_text=recommendation.original_text,
+            reason=recommendation.reason,
+            context=f"Category: {recommendation.category}",
+        )
+        propose_sig = inspect.signature(provider.propose)
+        if "force_refresh" in propose_sig.parameters:
+            proposal = provider.propose(req, force_refresh=True)
+        else:
+            proposal = provider.propose(req)
+    except Exception as exc:
+        logger.warning("Error regenerating AI proposal: %s", exc)
+        proposal = None
+
+    if proposal and proposal.proposed_text:
+        recommendation.proposed_text = proposal.proposed_text
+        recommendation.source = proposal.provider
+        recommendation.confidence = proposal.confidence
+        if proposal.requires_user_input:
+            existing = list(recommendation.requires_user_input or [])
+            for prompt_dict in proposal.requires_user_input:
+                if prompt_dict not in existing:
+                    existing.append(prompt_dict)
+            recommendation.requires_user_input = existing
+        db.commit()
+        db.refresh(recommendation)
+
+    return recommendation
+
+
 def to_out(recommendation: Recommendation) -> RecommendationOut:
     return RecommendationOut(
         id=str(recommendation.id),
@@ -131,5 +258,6 @@ def to_out(recommendation: Recommendation) -> RecommendationOut:
         requires_user_input=list(recommendation.requires_user_input or []),
         confidence=recommendation.confidence,
         state=recommendation.state,
+        source=recommendation.source,
         decided_at=recommendation.decided_at,
     )
