@@ -32,7 +32,7 @@
       "spearman": 0.8729,
       "pairwise_accuracy": 0.88,
       "tier_spread": 40.67,
-      "min": 44.2,
+      "min": 45.0,
       "max": 88.86
     },
     {
@@ -64,7 +64,7 @@
       "spearman": 0.8729,
       "pairwise_accuracy": 0.88,
       "tier_spread": 37.68,
-      "min": 42.61,
+      "min": 43.47,
       "max": 88.23
     },
     {

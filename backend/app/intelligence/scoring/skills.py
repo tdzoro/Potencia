@@ -260,8 +260,10 @@ def _sk05(structure: ResumeStructure, explicit: list[str]) -> CriterionResult:
         if role.end:
             parsed = parse_year_month(role.end)
             end_year = parsed[0] if parsed else None
-        else:
+        elif start is not None:
             end_year = current_year
+        # A role with no dates at all cannot establish recency. An explicit but
+        # unparseable end is unknown; a missing end on a dated role is ongoing.
         if end_year is None and start is None:
             continue
         dated_roles += 1

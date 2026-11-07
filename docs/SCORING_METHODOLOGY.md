@@ -251,7 +251,7 @@ Category confidence is the minimum across its applicable criteria — a category
 
 | Version | Change |
 |:--|:--|
-| `1.1.0` | Skill evidence is whole-token and excludes the summary and skills list; SK-05 treats a malformed explicit end date as unknown; EX-05 measures roles only; findings and priority actions are ordered by points lost. No weights changed. |
+| `1.1.0` | Skill evidence is whole-token and excludes the summary and skills list; SK-05 treats a malformed explicit end date as unknown and never treats an undated role as current; EX-05 measures roles only and ignores blank skill entries; findings and priority actions are ordered by points lost. No weights changed. |
 | `1.0.0` | Initial calibrated model: 30 criteria, six weighted categories, applicability handling, evidence on every deduction. |
 
 ---

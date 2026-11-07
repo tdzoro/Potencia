@@ -354,6 +354,50 @@ def test_unparseable_end_date_is_not_treated_as_current() -> None:
     assert criteria["SK-05"].subscore == 0.0
 
 
+def test_an_undated_role_cannot_establish_recency() -> None:
+    resume = ResumeStructure(
+        experience=[
+            ExperienceEntry(
+                title="Engineer",
+                organisation="Acme",
+                start=None,
+                end=None,
+                bullets=bullets("Delivered billing services in Kubernetes"),
+            )
+        ],
+        skills=SkillSet(explicit=["Kubernetes"]),
+        sections=SectionPresence(experience=True, skills=True),
+    )
+
+    result = score_resume(resume, extraction_confidence=0.95)
+    criteria = {criterion.criterion: criterion for criterion in result.criteria}
+
+    assert "SK-05" not in criteria
+    assert not any(finding.criterion == "SK-05" for finding in result.findings)
+
+
+def test_a_blank_skill_does_not_create_a_relevance_deduction() -> None:
+    resume = ResumeStructure(
+        experience=[
+            ExperienceEntry(
+                title="Engineer",
+                organisation="Acme",
+                start="2024-01",
+                end=None,
+                bullets=bullets("Delivered billing services in Kubernetes"),
+            )
+        ],
+        skills=SkillSet(explicit=[""]),
+        sections=SectionPresence(experience=True, skills=True),
+    )
+
+    result = score_resume(resume, extraction_confidence=0.95)
+    criteria = {criterion.criterion: criterion for criterion in result.criteria}
+
+    assert "EX-05" not in criteria
+    assert not any(finding.criterion == "EX-05" for finding in result.findings)
+
+
 def test_every_finding_has_evidence_and_an_explanation() -> None:
     for resume in (strong_resume(), weak_resume(), no_experience_resume()):
         result = score_resume(resume, extraction_confidence=0.95)

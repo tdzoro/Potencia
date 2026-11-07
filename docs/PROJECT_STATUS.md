@@ -141,11 +141,12 @@ Figures refreshed from a live run on 1 November 2026: analysis p50 **16.7 ms** (
 - Skill evidence uses taxonomy aliases with **whole-token boundaries**, so `R` is not found inside `worked` but `JS` still resolves to `JavaScript`.
 - SK-04 no longer accepts the summary or the skills list as proof; roles, project technologies, certifications, achievements and leadership are evidence.
 - EX-05 measures role experience only, not projects or the summary.
-- SK-05 treats an unparseable explicit end date as unknown rather than as an ongoing role.
+- SK-05 treats an unparseable explicit end date as unknown rather than as an ongoing role, and an undated role can no longer establish recency.
+- EX-05 ignores blank skill entries instead of deducting for a skill that was never claimed.
 
 Evidence matching scans each text once, so the exactness did not become a performance regression: warm score p50 **1.26 ms**, full pipeline **2.09 ms** on the recorded host. Calibration is unchanged — the shipped vector still ties equal-weight and ATS-heavy at ρ **0.909** — and remains labelled a product-design choice, not a validated study. The published 82.6 sample is pinned by a PDF-through-scoring regression test with a frozen clock, and the methodology is published as `1.1.0`.
 
-**Verification:** 256 backend tests collected (251 pass, 5 optional skips), 33 frontend tests, production build, 15 browser journeys and four GitHub Actions jobs.
+**Verification:** 258 backend tests collected (253 pass, 5 optional skips), 33 frontend tests, production build, 15 browser journeys and four GitHub Actions jobs.
 
 ---
 

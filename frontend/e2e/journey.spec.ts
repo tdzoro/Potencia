@@ -61,6 +61,27 @@ async function seedAccount(api: APIRequestContext): Promise<Seeded> {
   }
 }
 
+/** Create a named revision through the API so a test never depends on a prior test. */
+async function seedVersion(api: APIRequestContext, seeded: Seeded, label: string): Promise<void> {
+  const headers = { Authorization: `Bearer ${seeded.token}` }
+  const listed = await api.get(`${API}/api/v1/resumes/${seeded.resumeId}/revisions`, { headers })
+  expect(listed.ok(), await listed.text()).toBeTruthy()
+  const revisions = await listed.json()
+  const parent = revisions[0]
+  const content = JSON.parse(JSON.stringify(parent.content))
+  content.summary = {
+    ...content.summary,
+    text: `Summary prepared for the ${label} export check.`,
+    present: true,
+  }
+
+  const created = await api.post(`${API}/api/v1/resumes/${seeded.resumeId}/revisions`, {
+    headers,
+    data: { content, parent_id: parent.id, label },
+  })
+  expect(created.ok(), await created.text()).toBeTruthy()
+}
+
 /** Seed the session the same way the app stores it, before any script runs. */
 async function withSession(context: BrowserContext, token: string): Promise<void> {
   await context.addInitScript((accessToken) => {
@@ -235,21 +256,22 @@ test.describe('the authenticated journey', () => {
     await expect(panel).toContainText(improved)
   })
 
-  test('a named version can be chosen for export', async ({ page, context }) => {
+  test('a named version can be chosen for export', async ({ page, context, request }) => {
     await withSession(context, seeded.token)
+    await seedVersion(request, seeded, 'Exportable')
 
     await page.goto(`/app/analyses/${seeded.analysisId}/export`)
     const picker = page.locator('#export-version')
-    await expect(picker).toContainText('Platform')
+    await expect(picker).toContainText('Exportable')
 
-    const option = page.locator('#export-version option', { hasText: 'Platform' })
+    const option = page.locator('#export-version option', { hasText: 'Exportable' })
     await picker.selectOption(await option.getAttribute('value'))
     await page.getByRole('button', { name: /generate resume pdf/i }).click()
 
     // The generated file is labelled with the version that produced it, so the
     // history answers "which version is this?" without opening the file.
     const historySection = page.locator('section[aria-labelledby="export-history"]')
-    await expect(historySection).toContainText(/Platform/)
+    await expect(historySection).toContainText(/Exportable/)
     await expect(historySection.getByRole('link', { name: /^download$/i }).first()).toBeVisible()
   })
 

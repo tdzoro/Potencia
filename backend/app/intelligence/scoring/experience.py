@@ -278,7 +278,7 @@ def _ex04(entries: list[ExperienceEntry]) -> CriterionResult:
 
 
 def _ex05(structure: ResumeStructure, entries: list[ExperienceEntry]) -> CriterionResult:
-    claimed = {name.lower().strip() for name in structure.skills.explicit}
+    claimed = {name.lower().strip() for name in structure.skills.explicit if name.strip()}
     if not claimed:
         return not_applicable("EX-05", "no claimed skills to cross-check against experience")
 
