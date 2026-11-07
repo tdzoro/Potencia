@@ -232,7 +232,7 @@ def test_api_match_flow(client: TestClient) -> None:
     assert match.status_code == 201, match.text
     body = match.json()
     assert body["status"] == "completed"
-    assert body["result"]["methodology_version"] == "1.0.0"
+    assert body["result"]["methodology_version"] == "1.1.0"
     assert 0 <= body["result"]["estimate"] <= 100
     assert body["result"]["requirements"]["required_skills"]
 

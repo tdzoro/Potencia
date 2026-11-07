@@ -190,7 +190,7 @@ def test_complete_resume_scores_all_six_categories() -> None:
     assert set(result.bundle.components) == set(CATEGORY_WEIGHTS)
     assert result.bundle.applicable_weight == 100
     assert 0.0 <= result.bundle.overall <= 100.0
-    assert result.bundle.methodology_version == "1.0.0"
+    assert result.bundle.methodology_version == "1.1.0"
     assert result.ats is not None
 
 

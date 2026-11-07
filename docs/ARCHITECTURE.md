@@ -592,7 +592,7 @@ Every request and every task emits one JSON line, keyed by `request_id`:
 | `task_id`, `attempt` | `01JC...`, `2` | Retry visibility |
 | `dependency` | `ai_provider`, `database` | Which subsystem degraded |
 | `error_code` | `dependency_unavailable` | Joins logs to the error taxonomy |
-| `methodology_version` | `1.0.0` | Ties a result to the rules that produced it |
+| `methodology_version` | `1.1.0` | Ties a result to the rules that produced it |
 
 ### 10.2 Never logged
 

@@ -58,7 +58,7 @@ def save(figure, name: str) -> None:
 def calibration_chart(data: dict) -> None:
     """Does any plausible weight vector rank resumes better than the shipped one?"""
     results = data["results"]
-    names = [row["name"].replace(" (v1.0.0)", "") for row in results]
+    names = [row["name"].replace(" (v1.1.0)", "") for row in results]
     spearman = [row["spearman"] for row in results]
     pairwise = [row["pairwise_accuracy"] for row in results]
 

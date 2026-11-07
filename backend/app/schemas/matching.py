@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 SkillStatus = Literal["matched", "partial", "weakly_demonstrated", "absent"]
 RequirementStatus = Literal["matched", "partial", "absent", "not_applicable"]
 
-MATCHING_METHODOLOGY_VERSION = "1.0.0"
+MATCHING_METHODOLOGY_VERSION = "1.1.0"
 
 
 class JobRequirements(BaseModel):

@@ -1,6 +1,6 @@
 # POTENCIA — Scoring Methodology
 
-**Methodology version:** `1.0.0`
+**Methodology version:** `1.1.0`
 **Status:** specification. Implemented in Phase 6; calibrated in Phase 14.
 **Owner:** scoring engine (`backend/app/intelligence/scoring/`)
 
@@ -246,6 +246,13 @@ Category confidence is the minimum across its applicable criteria — a category
 - Every stored analysis records the version that produced it. Re-scoring is an explicit, auditable action — never a silent re-render that changes a user's history under them.
 - The weak-verb set, generic-phrase library and skill taxonomy are versioned artefacts with their own content hashes, recorded alongside the analysis. Editing the clause library cannot retroactively alter a past score.
 - Determinism is enforced by test: fixed fixture → fixed expected JSON. Any diff fails CI.
+
+### 8.1 Version history
+
+| Version | Change |
+|:--|:--|
+| `1.1.0` | Skill evidence is whole-token and excludes the summary and skills list; SK-05 treats a malformed explicit end date as unknown; EX-05 measures roles only; findings and priority actions are ordered by points lost. No weights changed. |
+| `1.0.0` | Initial calibrated model: 30 criteria, six weighted categories, applicability handling, evidence on every deduction. |
 
 ---
 

@@ -113,7 +113,7 @@ def candidates() -> list[Candidate]:
     """The shipped vector plus the alternatives worth ruling out."""
     shipped: Categories = {key: value for key, value in CATEGORY_WEIGHTS.items()}
     return [
-        Candidate("shipped (v1.0.0)", shipped),
+        Candidate("shipped (v1.1.0)", shipped),
         Candidate("content-heavy", {**shipped, "content_quality": 35, "ats_compatibility": 10}),
         Candidate("ats-heavy", {**shipped, "ats_compatibility": 25, "content_quality": 20}),
         Candidate(

@@ -1,8 +1,8 @@
 # Project status
 
-**Last updated:** 1 November 2026
-**Current phase:** 21 complete — OCR, malware scanning, recovery and optional AI integrated
-**Methodology version:** 1.0.0
+**Last updated:** 7 November 2026
+**Current phase:** 22 complete — evidence-exact scoring released as v1.1.0
+**Methodology version:** 1.1.0
 
 ---
 
@@ -132,6 +132,20 @@ Figures refreshed from a live run on 1 November 2026: analysis p50 **16.7 ms** (
 **Corrected:** the QA report predated the merge and carried the older suite size (234 tests, 19 unit, 14 journeys, 36 operations), and it repeated the stale "27 criteria". All counts and the criteria total now match the code. The README gained sections for the document-hardening pipeline, OCR, and the optional AI provider, and the limitations that no longer apply were removed rather than left to age.
 
 **PASS.**
+
+### Phase 22 — Evidence-exact scoring, v1.1.0
+
+**PASS.** A model audit fixed five scoring defects without retuning weights:
+
+- Findings and priority actions now order by **points lost**, not severity alone.
+- Skill evidence uses taxonomy aliases with **whole-token boundaries**, so `R` is not found inside `worked` but `JS` still resolves to `JavaScript`.
+- SK-04 no longer accepts the summary or the skills list as proof; roles, project technologies, certifications, achievements and leadership are evidence.
+- EX-05 measures role experience only, not projects or the summary.
+- SK-05 treats an unparseable explicit end date as unknown rather than as an ongoing role.
+
+Evidence matching scans each text once, so the exactness did not become a performance regression: warm score p50 **1.26 ms**, full pipeline **2.09 ms** on the recorded host. Calibration is unchanged — the shipped vector still ties equal-weight and ATS-heavy at ρ **0.909** — and remains labelled a product-design choice, not a validated study. The published 82.6 sample is pinned by a PDF-through-scoring regression test with a frozen clock, and the methodology is published as `1.1.0`.
+
+**Verification:** 256 backend tests collected (251 pass, 5 optional skips), 33 frontend tests, production build, 15 browser journeys and four GitHub Actions jobs.
 
 ---
 

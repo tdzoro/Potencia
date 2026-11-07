@@ -4,7 +4,7 @@
   "samples": 8,
   "results": [
     {
-      "name": "shipped (v1.0.0)",
+      "name": "shipped (v1.1.0)",
       "weights": {
         "content_quality": 25,
         "experience": 20,

@@ -60,7 +60,7 @@ services:
     restart: unless-stopped
     environment:
       POTENCIA_ENVIRONMENT: development
-      POTENCIA_APP_VERSION: 0.1.0
+      POTENCIA_APP_VERSION: 1.1.0
       POTENCIA_DATABASE_URL: postgresql+psycopg://potencia:potencia@db:5432/potencia
       POTENCIA_SECRET_KEY: ${POTENCIA_SECRET_KEY:-dev-insecure-change-me}
       POTENCIA_CORS_ORIGINS: "http://localhost:5173,http://localhost:8080"

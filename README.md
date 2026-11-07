@@ -8,9 +8,9 @@
 
 Deterministic scoring · ATS compatibility · job matching · edits you approve.
 
-[![Tests](https://img.shields.io/badge/tests-253%20backend%20%C2%B7%2033%20unit%20%C2%B7%2015%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![Tests](https://img.shields.io/badge/tests-256%20backend%20%C2%B7%2033%20unit%20%C2%B7%2015%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
 [![API](https://img.shields.io/badge/API-37%20operations-22D3EE?style=flat-square)](docs/API.md)
-[![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
+[![Methodology](https://img.shields.io/badge/scoring-v1.1.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
 [![Engine](https://img.shields.io/badge/pipeline-2.09%20ms%20p50-0EA5E9?style=flat-square)](docs/PROJECT_STATUS.md)
 [![Licence](https://img.shields.io/badge/licence-proprietary-9AA3C7?style=flat-square)](LICENSE)
 
@@ -198,7 +198,7 @@ An unquantified achievement never produces a guessed number. It produces a quest
 
 | Candidate | Spearman ρ | Pairwise accuracy | Tier spread |
 |:--|--:|--:|--:|
-| **shipped (v1.0.0)** | **0.909** | **0.920** | **39.4** |
+| **shipped (v1.1.0)** | **0.909** | **0.920** | **39.4** |
 | equal-weights | 0.909 | 0.920 | 40.8 |
 | ATS-heavy | 0.909 | 0.920 | 34.3 |
 | content-heavy | 0.873 | 0.880 | 40.7 |
@@ -354,7 +354,7 @@ docker compose up --build       # API :8000 · web :8080 · PostgreSQL · Redis 
 `GEMINI_API_KEY` and `SMTP_*` are optional; without them the product is rules-only and logs verification links instead of emailing them. Local backend setup: `python -m venv .venv`, `pip install -r requirements.txt`, `alembic upgrade head`, `uvicorn app.main:app --reload`; the frontend runs with `npm install && npm run dev`.
 
 ```bash
-cd backend && pytest                 # 253 collected · 248 pass · 5 optional skips
+cd backend && pytest                 # 256 collected · 251 pass · 5 optional skips
 cd frontend && npm test              # 33 component and form tests
 cd frontend && npm run build         # strict typecheck + production build
 cd frontend && npm run e2e           # 15 browser journeys against a live stack

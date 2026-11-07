@@ -273,10 +273,10 @@ def _create_test_analysis(session: Session, user: User) -> Analysis:
         user_id=user.id,
         resume_id=resume.id,
         status="completed",
-        methodology_version="1.0.0",
+        methodology_version="1.1.0",
         scores={
             "overall": 75.0,
-            "methodology_version": "1.0.0",
+            "methodology_version": "1.1.0",
             "applicable_weight": 100.0,
             "band": "competent",
             "components": {},
