@@ -113,7 +113,7 @@ def candidates() -> list[Candidate]:
     """The shipped vector plus the alternatives worth ruling out."""
     shipped: Categories = {key: value for key, value in CATEGORY_WEIGHTS.items()}
     return [
-        Candidate("shipped (v1.1.0)", shipped),
+        Candidate("shipped (v1.2.0)", shipped),
         Candidate("content-heavy", {**shipped, "content_quality": 35, "ats_compatibility": 10}),
         Candidate("ats-heavy", {**shipped, "ats_compatibility": 25, "content_quality": 20}),
         Candidate(
@@ -128,11 +128,22 @@ def candidates() -> list[Candidate]:
 
 
 def normalise(weights: Categories) -> Categories:
-    """Scale to exactly 100 so two vectors are comparable."""
+    """Scale to exactly 100 so two vectors are comparable.
+
+    Largest-remainder rounding; independently rounding six equal weights to 17
+    would report a total of 102 and make the comparison vectors dishonest.
+    """
     total = sum(weights.values())
     if total == 0:
         return dict(weights)
-    return {key: round(value * 100 / total) for key, value in weights.items()}
+
+    scaled = {key: value * 100 / total for key, value in weights.items()}
+    result = {key: int(value) for key, value in scaled.items()}
+    remaining = 100 - sum(result.values())
+    order = sorted(scaled, key=lambda key: (-(scaled[key] - result[key]), key))
+    for key in order[:remaining]:
+        result[key] += 1
+    return result
 
 
 def evaluate(samples: list[Sample]) -> list[dict[str, object]]:

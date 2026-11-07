@@ -233,7 +233,7 @@ Each acceptance criterion is stated so that a test can pass or fail it.
 
 | ID | Requirement | Pri | Acceptance criterion |
 |:--|:--|:-:|:--|
-| FR-D-01 | Compute the six intrinsic categories and the overall score per `SCORING_METHODOLOGY.md` v1.1.0 | M | Worked example in §10 of that document reproduces exactly: `overall: 77.5` on the stated fixture |
+| FR-D-01 | Compute the six intrinsic categories and the overall score per `SCORING_METHODOLOGY.md` v1.2.0 | M | Worked example in §10 of that document reproduces exactly: `overall: 77.5` on the stated fixture |
 | FR-D-02 | **An LLM must never produce, adjust or influence a numeric score** | M | With every AI provider disabled or returning garbage, the produced `scores` object is byte-identical to the run with providers healthy |
 | FR-D-03 | Scoring must be deterministic | M | Scoring the same fixture twice yields identical values to one decimal place; a fixed expected-JSON snapshot test passes |
 | FR-D-04 | Report `applicable_weight` and exclude non-applicable categories from the denominator | M | Student fixture with no work history reports no `experience` component and `applicable_weight: 80` |

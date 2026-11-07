@@ -3,13 +3,13 @@
 ## Running the suites
 
 ```bash
-cd backend && pytest -q          # 258 tests collected; 253 pass, 5 optional integrations skip
+cd backend && pytest -q          # 278 tests collected; 273 pass, 5 optional integrations skip
 cd frontend && npm test          # 33 component/form tests (Vitest)
 cd frontend && npm run build     # strict typecheck + production build
 cd frontend && npm run e2e       # 15 browser journeys, needs a live stack
 ```
 
-The default backend suite needs no PostgreSQL, no network and no AI provider: it runs on an in-memory SQLite database per test, with uploads in a temporary directory. Four ClamAV integration tests and the live Gemini call are opt-in and skip in that run. The browser suite needs a running API and a built web app; it seeds its own account, so it never depends on data already in a database.
+The default backend suite needs no PostgreSQL, no network and no AI provider: it runs on an in-memory SQLite database per test, with uploads in a temporary directory. Four ClamAV integration tests and the live Gemini call are opt-in and skip in that run. The browser suite needs a running API and a built web app; it seeds its own account, so it never depends on data already in a database. CI runs on every push and pull request, and on a Monday 06:00 UTC schedule, so drift in the full backend, PostgreSQL migration, frontend and browser suites is caught without a new commit.
 
 ## Backend
 
@@ -29,7 +29,9 @@ The default backend suite needs no PostgreSQL, no network and no AI provider: it
 | Idempotency | `test_idempotency.py` | Replay returns the original body and creates nothing, keys are per account, cross-endpoint reuse is `409`, short keys are `422`, expiry allows reuse |
 | Pagination | `test_pagination.py` | Pages walk without gaps or repeats, newest first, malformed cursor is `422` |
 | Rate-limit store | `test_ratelimit_store.py` | Middleware honours an injected store, in-memory window, Redis `INCR`+`EXPIRE NX` semantics, unreachable Redis degrades |
-| Calibration | `test_calibration.py` | Spearman on monotone and tied data, applicability-aware totals, normalisation |
+| Calibration | `test_calibration.py` | Spearman on monotone and tied data, applicability-aware totals, normalisation that sums to exactly 100 |
+| Date and boundary properties | `test_properties.py` | Hypothesis round-trip and validity laws across every real calendar day, impossible dates, whole-token skill matching, weight totals and finding partitions |
+| Calibration study | `test_calibration_study.py` | Consent and anonymisation refusal, 200-sample floor, two valid ratings, duplicate ids, weighted κ, deterministic split, coarse weight grid, holdout report, automatic weight adoption never occurs |
 | Performance | `test_performance.py` | Heading table ordered once at import, 1,400 classifications inside a loose budget, one document read per match (not one per requirement), 40-requirement match inside budget, eight-document parse inside budget, normalisation actually cached |
 | Versions | `test_versions.py` | Labels stored and returned, unlabelled stays null, malformed `parent_id` is `422` not `500`, over-length label rejected, field-level comparison including projects and education, identical versions report no changes, cross-resume and cross-account comparison is `404` |
 | Retention | `test_retention.py` | Expired file and row both removed, download link stops serving, unexpired export survives, an expired row without bytes still goes |
@@ -97,6 +99,15 @@ PYTHONPATH=backend backend/.venv/bin/python scripts/calibrate.py
 ```
 
 Parses eight fixtures, scores them, and compares weight vectors by rank correlation. It writes `assets/readme/calibration.json`. The dataset is rubric-assigned, not recruiter-ranked — the script says so, because the difference matters.
+
+The empirical protocol is separate and has not been run on a real corpus:
+
+```bash
+PYTHONPATH=backend backend/.venv/bin/python scripts/calibration_study.py \
+  --corpus path/to/study.json --output assets/readme/calibration_study.json
+```
+
+`backend/app/intelligence/scoring/study.py` requires explicit consent and anonymisation, ≥ 200 unique resumes, and two independent 1–5 ratings per resume. It reports weighted κ before engine metrics, refuses when κ < 0.7, splits deterministically by SHA-256 of the sample id, fits the coarse weight grid on the training half only and evaluates the holdout once. A better candidate is reported for review; shipped weights are never edited automatically. The schema and protocol are in §9.2 of the scoring methodology.
 
 ## README artefacts
 

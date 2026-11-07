@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import date
 
 _MONTHS: dict[str, int] = {
     "jan": 1, "january": 1,
@@ -75,8 +76,12 @@ def _valid_month(value: int) -> bool:
     return 1 <= value <= 12
 
 
-def _valid_day(value: int) -> bool:
-    return 1 <= value <= 31
+def _valid_day(year: int, month: int, day: int) -> bool:
+    try:
+        date(year, month, day)
+    except ValueError:
+        return False
+    return True
 
 
 def normalize_date(raw: str) -> DateValue:
@@ -101,16 +106,18 @@ def normalize_date(raw: str) -> DateValue:
             month = _MONTHS.get(month_name[:3], 0) or _MONTHS.get(month_name, 0)
             day = match.group(1) if match.group(1).isdigit() else match.group(2)
             year = match.group(3)
-            if not _valid_month(month) or not _valid_day(int(day)):
-                continue
+            if not _valid_month(month) or not _valid_day(int(year), month, int(day)):
+                # A date with an explicit impossible day is unknown, not a
+                # month-precision date: 31 February must not become February.
+                return DateValue(None, "unknown", ambiguous=True, raw=raw)
             return DateValue(f"{year}-{month:02d}-{int(day):02d}", "day", raw=raw)
 
         if kind == "day_slash":
-            first, second, year = int(match.group(1)), int(match.group(2)), match.group(3)
-            if _valid_month(first) and _valid_day(second):
+            first, second, year = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            if _valid_month(first) and _valid_day(year, first, second):
                 return DateValue(f"{year}-{first:02d}-{second:02d}", "day", raw=raw)
             # Day-first convention (14/03/2024) arrives here.
-            if _valid_day(first) and _valid_month(second):
+            if _valid_month(second) and _valid_day(year, second, first):
                 return DateValue(f"{year}-{second:02d}-{first:02d}", "day", raw=raw)
             return DateValue(None, "unknown", ambiguous=True, raw=raw)
 

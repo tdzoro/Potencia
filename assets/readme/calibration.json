@@ -4,7 +4,7 @@
   "samples": 8,
   "results": [
     {
-      "name": "shipped (v1.1.0)",
+      "name": "shipped (v1.2.0)",
       "weights": {
         "content_quality": 25,
         "experience": 20,
@@ -72,16 +72,16 @@
       "weights": {
         "content_quality": 17,
         "experience": 17,
-        "skills": 17,
-        "structure": 17,
+        "skills": 16,
+        "structure": 16,
         "ats_compatibility": 17,
         "language_readability": 17
       },
       "spearman": 0.9092,
       "pairwise_accuracy": 0.92,
-      "tier_spread": 40.77,
-      "min": 44.58,
-      "max": 87.17
+      "tier_spread": 40.03,
+      "min": 45.4,
+      "max": 87.19
     }
   ]
 }

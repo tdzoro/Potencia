@@ -22,7 +22,10 @@ from app.intelligence.taxonomy import split_supported_skills
 from app.schemas.resume import ExperienceEntry, ResumeStructure
 from app.schemas.scores import CriterionResult, Evidence
 
-_YEAR_MONTH = re.compile(r"(?P<year>(?:19|20)\d{2})(?:[-/](?P<month>0?[1-9]|1[0-2]))?")
+_YEAR_MONTH = re.compile(
+    r"^(?P<year>(?:19|20)\d{2})(?:[-/](?P<month>1[0-2]|0?[1-9])(?:[-/]\d{1,2})?)?$"
+)
+_MONTH_YEAR = re.compile(r"^(?P<month>1[0-2]|0?[1-9])/(?P<year>(?:19|20)\d{2})$")
 
 SENIORITY = {
     "intern": 0,
@@ -47,10 +50,16 @@ SENIORITY = {
 
 
 def parse_year_month(value: str | None) -> tuple[int, int] | None:
-    """Parse `2024-06`, `06/2024`-free formats and bare years. Unknown is None."""
+    """Parse `2024`, `2024-10`, `2024-10-15` or `10/2024`. Unknown is None.
+
+    October–December must parse as two-digit months: an alternation that tries
+    `1` before `10` silently turns every Q4 date into January.
+    """
     if not value:
         return None
-    match = _YEAR_MONTH.search(value)
+
+    text = value.strip()
+    match = _YEAR_MONTH.fullmatch(text) or _MONTH_YEAR.fullmatch(text)
     if not match:
         return None
     year = int(match.group("year"))

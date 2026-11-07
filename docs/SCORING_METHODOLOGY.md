@@ -1,6 +1,6 @@
 # POTENCIA — Scoring Methodology
 
-**Methodology version:** `1.1.0`
+**Methodology version:** `1.2.0`
 **Status:** specification. Implemented in Phase 6; calibrated in Phase 14.
 **Owner:** scoring engine (`backend/app/intelligence/scoring/`)
 
@@ -242,7 +242,7 @@ Category confidence is the minimum across its applicable criteria — a category
 
 ## 8. Reproducibility and versioning
 
-- `methodology_version` is semver: **major** when weights change, **minor** when criteria are added or thresholds move, **patch** when only wording changes.
+- `methodology_version` is semver: **major** when weights change, **minor** when criteria are added, thresholds move, or scoring behaviour is corrected, **patch** when only wording changes.
 - Every stored analysis records the version that produced it. Re-scoring is an explicit, auditable action — never a silent re-render that changes a user's history under them.
 - The weak-verb set, generic-phrase library and skill taxonomy are versioned artefacts with their own content hashes, recorded alongside the analysis. Editing the clause library cannot retroactively alter a past score.
 - Determinism is enforced by test: fixed fixture → fixed expected JSON. Any diff fails CI.
@@ -251,6 +251,7 @@ Category confidence is the minimum across its applicable criteria — a category
 
 | Version | Change |
 |:--|:--|
+| `1.2.0` | October–December dates no longer collapse to January: `parse_year_month` anchors the whole string and prefers the two-digit month, rejects impossible months such as `2024-13`, and accepts `2024`, `2024-10`, `2024-10-15` and `10/2024`. Calendar-invalid dates (`31/02/2024`) are unknown rather than silently degraded to month precision. Equal-weight normalisation uses largest-remainder rounding, so six equal weights sum to exactly 100 instead of 102. Adds property tests, weekly regression CI and a consent-gated 200-resume study harness. No shipped weights changed. |
 | `1.1.0` | Skill evidence is whole-token and excludes the summary and skills list; SK-05 treats a malformed explicit end date as unknown and never treats an undated role as current; EX-05 measures roles only and ignores blank skill entries; findings and priority actions are ordered by points lost. No weights changed. |
 | `1.0.0` | Initial calibrated model: 30 criteria, six weighted categories, applicability handling, evidence on every deduction. |
 
@@ -263,7 +264,7 @@ Until this is done, the weights are labelled *product-design starting points* ev
 | Step | Method | Produces |
 |:--|:--|:--|
 | 1 | Annotated corpus of ≥ 200 consented, anonymised resumes spanning the §3 profiles | Ground truth |
-| 2 | Two independent human raters per resume, using this document as the rubric | Inter-rater agreement (target Cohen's κ ≥ 0.7) |
+| 2 | Two independent human raters per resume, using this document as the rubric | Inter-rater agreement (target weighted Cohen's κ ≥ 0.7) |
 | 3 | Weight fitting against rater consensus | Empirically derived, replace-the-hypothesis weights |
 | 4 | Held-out test set, never used in fitting | Per-criterion precision/recall |
 | 5 | Sensitivity analysis — does any single criterion swing the overall by > 8 points? | Detection of over-weighted criteria |
@@ -283,6 +284,32 @@ Reported alongside the score, with an explicit note that they are heuristic:
 | Exceptional | 90–100 | Rare. Requires quantified, specific, well-structured evidence throughout |
 
 A resume cannot reach `Exceptional` with CQ-03 below 0.8 or SK-04 below 0.8, regardless of the arithmetic — headline claims must be backed by evidence that actually exists.
+
+### 9.2 Executable study harness
+
+The protocol above is enforced by `backend/app/intelligence/scoring/study.py` and run with `scripts/calibration_study.py`. A corpus is a JSON object:
+
+```json
+{
+  "consent": {
+    "confirmed": true,
+    "anonymised": true,
+    "basis": "How and when written consent was obtained"
+  },
+  "samples": [
+    {"id": "resume-001", "text": "Anonymised resume text", "rater_a": 4, "rater_b": 4}
+  ]
+}
+```
+
+The harness refuses to score anything unless consent and anonymisation are both explicit, the consent basis is recorded, there are at least 200 unique samples with usable text, and every sample has two independent integer ratings from 1 to 5. It reports linear-weighted Cohen's κ and raw agreement **before** any engine metric; if κ is below 0.7 the result is marked `not_ready` and no weight claim is made. The split is deterministic — ascending SHA-256 of the sample id, first half train — and the coarse weight grid is fitted on the training half only. The holdout is evaluated once, with no confidence interval claimed from a single split.
+
+```bash
+PYTHONPATH=backend backend/.venv/bin/python scripts/calibration_study.py \
+  --corpus path/to/study.json --output assets/readme/calibration_study.json
+```
+
+A fitted vector that improves held-out rank agreement by at least 0.03 without losing pairwise accuracy is reported as `candidate_improves` for explicit review. The harness never writes the shipped weights, never adopts the candidate, and never invents samples.
 
 ---
 

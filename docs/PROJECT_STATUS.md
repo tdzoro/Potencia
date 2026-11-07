@@ -1,8 +1,8 @@
 # Project status
 
 **Last updated:** 7 November 2026
-**Current phase:** 22 complete — evidence-exact scoring released as v1.1.0
-**Methodology version:** 1.1.0
+**Current phase:** 23 complete — model stabilisation and study harness released as v1.2.0
+**Methodology version:** 1.2.0
 
 ---
 
@@ -148,6 +148,18 @@ Evidence matching scans each text once, so the exactness did not become a perfor
 
 **Verification:** 258 backend tests collected (253 pass, 5 optional skips), 33 frontend tests, production build, 15 browser journeys and four GitHub Actions jobs.
 
+### Phase 23 — Model stabilisation and a study harness, v1.2.0
+
+**PASS.** Property-based tests exposed two real defects, both fixed without changing the shipped weight vector:
+
+- **Q4 dates collapsed to January.** `parse_year_month` searched an unanchored pattern whose month alternation tried `1` before `10`, so `2024-10` matched `2024-1` and returned January. The pattern is now anchored, prefers the two-digit month, accepts `2024`, `2024-10`, `2024-10-15` and `10/2024`, and rejects `2024-13`.
+- **Impossible calendar dates were silently degraded.** `31/02/2024` and `Feb 31, 2024` now normalise to unknown instead of becoming a valid-looking February date. A real leap day (`29/02/2024`) still parses.
+- **Equal weights did not sum to 100.** Largest-remainder rounding makes the six equal parts `17/17/16/16/17/17`; the equal-weights calibration candidate now reports a **40.0** tier spread instead of 40.8.
+
+New safeguards: seven Hypothesis property tests cover date round-trips, impossible dates, whole-token skill matching, partition totals and normalisation; a consent-gated study harness (`scripts/calibration_study.py`) enforces ≥ 200 anonymised resumes, two independent raters, weighted κ ≥ 0.7, a deterministic SHA-256 train/holdout split and train-only weight fitting, and never adopts weights; CI now also runs on a Monday 06:00 UTC schedule.
+
+**Verification:** 278 backend tests collected (273 pass, 5 optional skips), 33 frontend tests, production build, 15 browser journeys and four GitHub Actions jobs.
+
 ---
 
 ## Verified end to end
@@ -162,7 +174,7 @@ Browser journey verified in Chrome: score rendered from the DOM, acceptance pers
 
 | ID | Issue | Severity | Notes |
 |:--|:--|:--|:--|
-| KI-1 | Weights not empirically validated | Medium | Harness shows the shipped vector is not beaten by alternatives on rubric fixtures; that is a floor, not a study |
+| KI-1 | Weights not empirically validated | Medium | The shipped vector is not beaten by alternatives on rubric fixtures, and a consent-gated 200-resume study harness is ready; no real corpus has been run, so that is a floor, not a study |
 | KI-7 | OCR quality depends on scan quality | Low | Low-confidence scans lower extraction confidence and cap the ATS estimate instead of producing a confident report |
 | KI-8 | AI rewrites are only as good as the provider | Low | Optional, schema-validated, and never allowed to change a score; deterministic rules are the fallback |
 **Resolved in Phase 17:** per-process-only rate limits, missing export history, absent browser automation, unverified click-through of the match view, manual-only retention (now scheduled in compose), multi-version resumes (now labelled with comparison), a `500` on a malformed `parent_id`, and export rows mislabelled with an expiry as a generation time.
@@ -180,6 +192,6 @@ Browser journey verified in Chrome: score rendered from the DOM, acceptance pers
 
 ## Next
 
-1. Calibration study with independently ranked resumes, then a `methodology_version` bump if the weights move.
+1. Run the committed calibration-study harness on ≥ 200 consented resumes, then bump `methodology_version` only if the fitted weights survive the holdout.
 2. Optional LLM rewrite provider behind the existing seam, with prompt-injection controls documented before it ships.
 3. Multi-process load test and a second host, so throughput can be quoted beyond one process.

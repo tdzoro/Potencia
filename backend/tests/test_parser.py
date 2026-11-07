@@ -8,7 +8,9 @@ produce data" test while corrupting every score built on top of it.
 
 from __future__ import annotations
 
+from app.intelligence.normalization import normalize_date
 from app.intelligence.parser import classify_heading, parse_document
+from app.intelligence.scoring.experience import parse_year_month
 from app.intelligence.taxonomy import canonicalise, find_skills, size
 from app.schemas.resume import ExtractionResult
 
@@ -158,6 +160,25 @@ def test_employer_is_not_borrowed_when_the_document_does_not_state_one() -> None
     assert structure.experience[0].title == "Consultant"
     assert structure.experience[0].organisation is None
     assert any(item.reason == "dates_missing" for item in structure.uncertain)
+
+
+def test_two_digit_months_parse_as_october_through_december() -> None:
+    for month in (1, 9, 10, 11, 12):
+        assert parse_year_month(f"2024-{month:02d}") == (2024, month)
+    assert parse_year_month("2024-10-15") == (2024, 10)
+    assert parse_year_month("10/2024") == (2024, 10)
+    assert parse_year_month("2024-13") is None
+    assert parse_year_month("Mar 2024") is None
+
+
+def test_impossible_calendar_date_is_not_normalised() -> None:
+    for raw in ("31/02/2024", "30/02/2024", "31 Feb 2024", "Feb 31, 2024"):
+        parsed = normalize_date(raw)
+        assert parsed.value is None
+        assert parsed.precision == "unknown"
+
+    assert normalize_date("29/02/2024").value == "2024-02-29"
+    assert normalize_date("29/02/2023").value is None
 
 
 def test_ambiguous_date_is_reported_not_guessed() -> None:

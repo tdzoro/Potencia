@@ -8,9 +8,9 @@
 
 Deterministic scoring · ATS compatibility · job matching · edits you approve.
 
-[![Tests](https://img.shields.io/badge/tests-258%20backend%20%C2%B7%2033%20unit%20%C2%B7%2015%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![Tests](https://img.shields.io/badge/tests-278%20backend%20%C2%B7%2033%20unit%20%C2%B7%2015%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
 [![API](https://img.shields.io/badge/API-37%20operations-22D3EE?style=flat-square)](docs/API.md)
-[![Methodology](https://img.shields.io/badge/scoring-v1.1.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
+[![Methodology](https://img.shields.io/badge/scoring-v1.2.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
 [![Engine](https://img.shields.io/badge/pipeline-2.09%20ms%20p50-0EA5E9?style=flat-square)](docs/PROJECT_STATUS.md)
 [![Licence](https://img.shields.io/badge/licence-proprietary-9AA3C7?style=flat-square)](LICENSE)
 
@@ -198,17 +198,17 @@ An unquantified achievement never produces a guessed number. It produces a quest
 
 | Candidate | Spearman ρ | Pairwise accuracy | Tier spread |
 |:--|--:|--:|--:|
-| **shipped (v1.1.0)** | **0.909** | **0.920** | **39.4** |
-| equal-weights | 0.909 | 0.920 | 40.8 |
+| **shipped (v1.2.0)** | **0.909** | **0.920** | **39.4** |
+| equal-weights | 0.909 | 0.920 | 40.0 |
 | ATS-heavy | 0.909 | 0.920 | 34.3 |
 | content-heavy | 0.873 | 0.880 | 40.7 |
 | experience-heavy | 0.873 | 0.880 | 37.7 |
 
 <img src="assets/readme/calibration.png" alt="Rank agreement per candidate weight vector" />
 
-**The honest reading.** No alternative beats the shipped vector on rank agreement. Two tie it (equal-weight and ATS-heavy), and equal-weight has a marginally larger tier spread (40.8 vs 39.4). Eight authored fixtures cannot distinguish these vectors, so the weights remain a **documented product-design choice**, not an optimised or validated result. The corpus spans 46.4 – 88.3; the raw output is in [`calibration.json`](assets/readme/calibration.json), including that caveat.
+**The honest reading.** No alternative beats the shipped vector on rank agreement. Two tie it (equal-weight and ATS-heavy), and equal-weight has a marginally larger tier spread (40.0 vs 39.4). Eight authored fixtures cannot distinguish these vectors, so the weights remain a **documented product-design choice**, not an optimised or validated result. The corpus spans 46.4 – 88.3; the raw output is in [`calibration.json`](assets/readme/calibration.json), including that caveat.
 
-What would justify a stronger claim is a study, not more fixtures: ≥ 200 consented resumes, two independent raters per resume (target Cohen's κ ≥ 0.7), fitted weights and a held-out test set. That protocol is written down in §9 of the methodology.
+What would justify a stronger claim is a study, not more fixtures: ≥ 200 consented resumes, two independent raters per resume (target weighted Cohen's κ ≥ 0.7), fitted weights and a held-out test set. That protocol is written down in §9 of the methodology and executable: `scripts/calibration_study.py` validates consent, anonymisation and every rating, reports inter-rater agreement before any engine number, splits deterministically by SHA-256 of the sample id, fits only on the training half and evaluates the holdout once. It refuses a smaller or unconsented corpus, and it never edits the shipped weights.
 
 ---
 
@@ -354,7 +354,7 @@ docker compose up --build       # API :8000 · web :8080 · PostgreSQL · Redis 
 `GEMINI_API_KEY` and `SMTP_*` are optional; without them the product is rules-only and logs verification links instead of emailing them. Local backend setup: `python -m venv .venv`, `pip install -r requirements.txt`, `alembic upgrade head`, `uvicorn app.main:app --reload`; the frontend runs with `npm install && npm run dev`.
 
 ```bash
-cd backend && pytest                 # 258 collected · 253 pass · 5 optional skips
+cd backend && pytest                 # 278 collected · 273 pass · 5 optional skips
 cd frontend && npm test              # 33 component and form tests
 cd frontend && npm run build         # strict typecheck + production build
 cd frontend && npm run e2e           # 15 browser journeys against a live stack
@@ -369,7 +369,7 @@ Tests that exist to stop the product lying:
 - **Immutability** — revision 0 stays byte-identical; a replayed create writes no second row.
 - **Efficiency** — one document read per match; no heading sort per line.
 
-CI separately starts ClamAV and runs the live-daemon tests (`tests/test_clamav_integration.py`). The browser suite seeds its own account and asserts the score from the DOM, accepts a recommendation, verifies a signed PDF link, produces a named job gap and exports a named version.
+CI separately starts ClamAV and runs the live-daemon tests (`tests/test_clamav_integration.py`). It runs on every push and pull request, plus a Monday 06:00 UTC schedule, so the full backend, PostgreSQL migration round trip, frontend checks and browser suite are retested even when nothing is pushed. The browser suite seeds its own account and asserts the score from the DOM, accepts a recommendation, verifies a signed PDF link, produces a named job gap and exports a named version.
 
 ### Reproduce every figure
 
@@ -380,6 +380,7 @@ Each script writes raw output next to the chart. Nothing here was typed by hand.
 | `readme_metrics.py` | one real upload → analysis → recommendations → match → exports | `metrics.json`, `latency.png`, `findings.png` |
 | `profile_engine.py` | per-stage cost, cold start, size and requirement scaling | `engine_profile.json` |
 | `calibrate.py` | five weight vectors against eight rubric-ranked fixtures | `calibration.json` |
+| `calibration_study.py` | consent-gated 200+ resume study: κ, fixed split, fitted weights | caller-chosen JSON |
 | `load_test.py` | 200 analyses across 8 concurrent clients | `load.json` |
 | `measure_ocr.py` | OCR cost, word recovery and score drift on a synthetic scan | `ocr_profile.json` |
 | `readme_charts.py` + capture scripts | charts from the JSON; UI screenshots and the report page | `*.png` |
@@ -396,7 +397,7 @@ Docs: [SRS](docs/SRS.md) · [Architecture](docs/ARCHITECTURE.md) · [API](docs/A
 
 ## 13 — Limits, stated up front
 
-- **The weights are not empirically validated.** A reproducible harness shows the shipped vector is not beaten on eight rubric-ranked fixtures; two vectors tie it. That is a floor, not a study.
+- **The weights are not empirically validated.** A reproducible harness shows the shipped vector is not beaten on eight rubric-ranked fixtures; two vectors tie it. The 200-resume study harness exists but has not been run on a real corpus, so the weights remain a product-design choice.
 - **The ATS score simulates no specific vendor.** It measures structural parseability — the honest shared denominator.
 - **AI is optional and never scores.** Without a key the product is entirely rules-driven; with one, proposals are schema-validated and fall back on failure.
 - **Recency and length checks use the UTC calendar year.** The same input in the same year yields the same score; an explicit later re-analysis can differ, and stored analyses are never silently recalculated.

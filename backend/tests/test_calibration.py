@@ -62,3 +62,6 @@ def test_a_better_resume_scores_higher_under_the_shipped_vector() -> None:
 def test_normalise_scales_any_vector_to_one_hundred() -> None:
     scaled = normalise({"a": 1, "b": 1, "c": 2})
     assert sum(scaled.values()) == 100
+    equal = normalise({key: 1 for key in ("a", "b", "c", "d", "e", "f")})
+    assert sum(equal.values()) == 100
+    assert sorted(equal.values()) == [16, 16, 17, 17, 17, 17]

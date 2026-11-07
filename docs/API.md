@@ -189,7 +189,7 @@ The parsed representation. Every field traces to source text.
 
 ```json
 {
-  "methodology_version": "1.1.0",
+  "methodology_version": "1.2.0",
   "overall": 68.4,
   "applicable_weight": 85,
   "components": {
@@ -358,7 +358,7 @@ Revision `0` is always the untouched parse. The original is immutable; every edi
 ```json
 {
   "status": "ok",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "environment": "development",
   "dependencies": { "database": "ok" },
   "uptime_seconds": 412
@@ -470,7 +470,7 @@ Extension is never trusted on its own. A file named `resume.pdf` that is not a P
   "findings": [ { "...": "§2.6" } ],
   "strengths": [ { "text": "Quantified 7 of 9 experience bullets.", "evidence": ["experience[0].bullets[1]"] } ],
   "priority_actions": ["...ordered by score_impact descending..."],
-  "methodology_version": "1.1.0",
+  "methodology_version": "1.2.0",
   "failure": null,
   "created_at": "2026-11-01T09:14:03Z",
   "completed_at": "2026-11-01T09:14:41Z"

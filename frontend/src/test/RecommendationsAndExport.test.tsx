@@ -31,7 +31,7 @@ describe('Recommendations and Export Pages', () => {
         resume_id: 'res_1',
         created_at: new Date().toISOString(),
         scores: {
-          methodology_version: '1.1.0',
+          methodology_version: '1.2.0',
           overall: 82.5,
           band: 'competent',
           components: {},
@@ -82,7 +82,7 @@ describe('Recommendations and Export Pages', () => {
         id: 'ana_1',
         resume_id: 'res_1',
         created_at: new Date().toISOString(),
-        scores: { methodology_version: '1.1.0', overall: 75.0, band: 'competent', components: {} },
+        scores: { methodology_version: '1.2.0', overall: 75.0, band: 'competent', components: {} },
         findings: [],
         ats: {} as any,
       } as any)

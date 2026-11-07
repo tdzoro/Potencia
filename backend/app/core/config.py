@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     )
 
     environment: str = "development"
-    app_version: str = "1.1.0"
+    app_version: str = "1.2.0"
     log_level: str = "INFO"
 
     # Database

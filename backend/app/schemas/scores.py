@@ -33,7 +33,7 @@ CATEGORY_WEIGHTS: dict[str, int] = {
     "language_readability": 10,
 }
 
-METHODOLOGY_VERSION = "1.1.0"
+METHODOLOGY_VERSION = "1.2.0"
 
 
 class Evidence(BaseModel):

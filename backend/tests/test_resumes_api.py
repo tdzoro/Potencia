@@ -96,7 +96,7 @@ def test_analysis_produces_scores_evidence_and_actions(client: TestClient) -> No
     report = response.json()
 
     assert report["status"] == "completed"
-    assert report["methodology_version"] == "1.1.0"
+    assert report["methodology_version"] == "1.2.0"
 
     scores = report["scores"]
     assert 0 <= scores["overall"] <= 100
