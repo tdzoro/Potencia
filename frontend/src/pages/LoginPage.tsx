@@ -1,18 +1,21 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import { ErrorNotice } from '../components/States'
 import { useAuth } from '../context/AuthContext'
 import { ApiError } from '../services/api'
 import { resendVerification } from '../services/auth'
+import { demoEmail, demoEnabled, demoPassword } from '../services/demo'
 
 export function LoginPage() {
   const { status, login } = useAuth()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const demoPrefill = demoEnabled && params.get('demo') === '1'
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(demoPrefill ? demoEmail : '')
+  const [password, setPassword] = useState(demoPrefill ? demoPassword : '')
   const [error, setError] = useState<unknown>(null)
   const [pending, setPending] = useState(false)
   const [resendPending, setResendPending] = useState(false)
@@ -72,6 +75,13 @@ export function LoginPage() {
         <p className="mt-3 text-sm leading-relaxed text-muted">
           Your resumes, analyses and approved revisions are private to this account.
         </p>
+
+        {demoPrefill ? (
+          <p className="mt-4 rounded-xl border border-electric/30 bg-electric/10 p-3 text-xs leading-relaxed text-muted">
+            Demo account filled in. Sign in to open a prepared report — the account is shared,
+            so anything you change is visible to the next visitor.
+          </p>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="panel mt-8 flex flex-col gap-5 p-6" noValidate>
           <div className="flex flex-col gap-1.5">
@@ -154,6 +164,19 @@ export function LoginPage() {
             password the account was created with.
           </p>
         </form>
+
+        {demoEnabled && !demoPrefill ? (
+          <button
+            type="button"
+            onClick={() => {
+              setEmail(demoEmail)
+              setPassword(demoPassword)
+            }}
+            className="mt-6 self-start text-sm font-medium text-electric hover:underline"
+          >
+            Use the demo account
+          </button>
+        ) : null}
 
         <p className="mt-6 text-sm text-muted">
           No account yet?{' '}

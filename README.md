@@ -6,7 +6,7 @@
 
 **AI Resume Intelligence — deterministic scoring, ATS compatibility, job matching, and edits you approve.**
 
-[![Tests](https://img.shields.io/badge/tests-242%20backend%20%C2%B7%2033%20unit%20%C2%B7%2015%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+[![Tests](https://img.shields.io/badge/tests-247%20backend%20%C2%B7%2033%20unit%20%C2%B7%2015%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
 [![API](https://img.shields.io/badge/API-37%20operations-22D3EE?style=flat-square)](docs/API.md)
 [![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
 [![Engine](https://img.shields.io/badge/pipeline-2.12%20ms%20p50-0EA5E9?style=flat-square)](docs/PROJECT_STATUS.md)
@@ -181,7 +181,9 @@ flowchart LR
     F --> G[Assemble in page order<br/>record mean confidence]
 ```
 
-Preprocessing is not decoration: adaptive contrast (CLAHE) and deskew are what make a photographed page legible to Tesseract. Word-level confidences are averaged into the extraction confidence the scorer already uses, so a poor scan lowers every category's confidence and caps the ATS estimate instead of producing a confidently wrong report. An ordinary digital PDF never pays the OCR cost.
+Preprocessing is not decoration: adaptive contrast (CLAHE) and deskew are what make a photographed page legible to Tesseract. Word-level confidences are averaged into the extraction confidence the scorer already uses, so a poor scan lowers every category's confidence and caps the ATS estimate instead of producing a confidently wrong report. OCR text keeps Tesseract's line boundaries so headings and entries remain parseable. An ordinary digital PDF never pays the OCR cost.
+
+A reproducible synthetic one-page scan (200 DPI, 1.3° skew, Gaussian noise σ7, JPEG quality 65) ran through the production extraction path with Tesseract 5.3.4. It recovered all 161 fixture words (F1 1.000); the text-layer resume scored 92.1 and the OCR copy 91.8, with ATS estimates 88.2 and 86.5 respectively. OCR took 525 ms p50 (543 ms p95, 649 ms max) versus 1.19 ms p50 for text-layer extraction on this host. This is a single synthetic fixture, not a general accuracy or latency benchmark; the full sample and timings are in [`ocr_profile.json`](assets/readme/ocr_profile.json), and `scripts/measure_ocr.py` reproduces them.
 
 ---
 
@@ -494,6 +496,8 @@ docker compose up --build       # API :8000 · web :8080 · PostgreSQL · Redis 
 
 `GEMINI_API_KEY` and the `SMTP_*` settings are optional; without them the product runs rules-only and logs verification links instead of emailing them.
 
+To seed a prepared shared demo account on an API you control, run `PYTHONPATH=backend backend/.venv/bin/python scripts/seed_demo.py --base http://127.0.0.1:8000`. For a demo-only frontend build, set `VITE_DEMO_MODE=1` (and optionally `VITE_DEMO_EMAIL` / `VITE_DEMO_PASSWORD`) when building the frontend; only enable this on an environment where the shared demo account is intended to be public. Normal builds do not show the demo CTA or embed its credentials. The seed script is safe to re-run and prints the account credentials for setup.
+
 Local development without Docker:
 
 ```bash
@@ -547,10 +551,17 @@ Full detail, including what is deliberately not implemented yet, is in [`docs/SE
 ## Testing
 
 ```bash
-cd backend && pytest -q          # 242 tests, no database or network required
+cd backend && pytest -q          # 247 collected; 242 pass, 5 optional skips
 cd frontend && npm test          # 33 component and form tests (Vitest + Testing Library)
 cd frontend && npm run build     # strict typecheck + production build
 cd frontend && npm run e2e       # 15 browser journeys against a live stack
+```
+
+The backend has 247 collected tests (242 pass; 5 optional integrations skipped in the hermetic run). CI separately starts ClamAV and runs the four live daemon tests. To run them locally, start a ClamAV daemon on port 3310 and use:
+
+```bash
+cd backend
+POTENCIA_TEST_CLAMAV=1 POTENCIA_CLAMAV_ENABLED=true POTENCIA_CLAMAV_HOST=127.0.0.1 POTENCIA_CLAMAV_PORT=3310 .venv/bin/python -m pytest tests/test_clamav_integration.py -q
 ```
 
 The browser suite seeds its own account through the API and drives the real UI: the score is asserted from the DOM, a recommendation is accepted and re-read after reload, a PDF is generated and its signed link verified, a job description produces a named gap, a revision is saved without touching the original, a named version is compared field by field, and that same version is exported by name.
@@ -574,7 +585,7 @@ Stated here rather than discovered later:
 - **The weights are not empirically validated.** A reproducible harness shows the shipped vector is not beaten by plausible alternatives on eight rubric-ranked fixtures; that is a floor, not a study.
 - **The ATS score simulates no specific vendor.** It measures structural parseability, the honest shared denominator.
 - **AI is optional and never scores.** Without `GEMINI_API_KEY` the engine is rules-only; with it, proposals are schema-validated and fall back to rules on any failure. The score is identical either way.
-- **OCR needs the Tesseract binary.** The API image installs it. A host install without Tesseract detects a scanned document and returns `ocr_not_performed` rather than pretending to read it.
+- **OCR needs the Tesseract binary.** The API image installs it. A host install without Tesseract detects a scanned document and returns `ocr_not_performed` rather than pretending to read it. The recorded OCR measurement covers one reproducible synthetic scan; real scan quality varies.
 - **ClamAV is optional outside production.** Compose ships the daemon; if it is unreachable in development the upload is accepted and marked unscanned, while production refuses it with `503`.
 - **Email delivery needs SMTP.** Without it, verification and reset run in a hermetic in-memory mode, so links are logged rather than sent.
 - **Performance figures are single-host.** One process, one PostgreSQL; the same load script has measured 60.5 and 77.4 analyses/s on this machine at different times, and absolute engine microseconds track CPU clock. No capacity claim is made.
@@ -607,12 +618,15 @@ Nothing above was typed by hand. Each script measures the running product and wr
 | `profile_engine.py` | per-stage cost, cold start, size and requirement scaling | `engine_profile.json` |
 | `calibrate.py` | five weight vectors against eight rubric-ranked fixtures | `calibration.json` |
 | `load_test.py` | 200 analyses across 8 concurrent clients | `load.json` |
+| `measure_ocr.py` | text-layer and OCR extraction cost, word recovery and score drift on a synthetic scan | `ocr_profile.json` |
+| `seed_demo.py` | idempotently seeds the shared demo resume, analysis and job match (not a measurement) | API database |
 | `readme_charts.py` | renders the graphs from the JSON above — measures nothing itself | `calibration.png`, `contribution.png`, `scaling.png`, `load.png` |
 | `capture_screenshots.mjs` | the authenticated journey in Chromium, then each screen | `ui-*.png` |
 | `report_page.py` | a real generated report PDF, rasterised page one | `report-first-page.png` |
 
 ```bash
 PYTHONPATH=backend backend/.venv/bin/python scripts/profile_engine.py
+PYTHONPATH=backend backend/.venv/bin/python scripts/measure_ocr.py  # requires Tesseract
 PYTHONPATH=backend backend/.venv/bin/python scripts/calibrate.py
 PYTHONPATH=backend backend/.venv/bin/python scripts/readme_charts.py
 ```

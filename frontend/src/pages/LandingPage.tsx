@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { demoEnabled, demoLoginPath } from '../services/demo'
 
 interface Capability {
   title: string
@@ -135,8 +136,18 @@ export function LandingPage() {
           edit your summary and bullets in the studio, compare versions field by field, and export
           a PDF or DOCX. The original parse is never overwritten.
         </p>
+        {demoEnabled ? (
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
+            Or open a finished report in the seeded demo account — no upload required.
+          </p>
+        ) : null}
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link to="/register" className="btn-primary">
+          {demoEnabled ? (
+            <Link to={demoLoginPath} className="btn-primary">
+              Open the demo report
+            </Link>
+          ) : null}
+          <Link to="/register" className={demoEnabled ? 'btn-ghost' : 'btn-primary'}>
             Create an account
           </Link>
           <Link to="/status" className="btn-ghost">

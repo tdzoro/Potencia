@@ -32,6 +32,7 @@ from app.core.errors import PotenciaError
 from app.document.extraction import _extract_pdf, extract
 from app.document.ocr import (
     OcrDocumentResult,
+    _assemble_ocr_lines,
     OcrPageResult,
     deskew_image,
     is_tesseract_available,
@@ -127,6 +128,21 @@ class TestImagePreprocessing:
         assert img.shape[2] == 3  # RGB
         assert img.shape[0] > 0
         assert img.shape[1] > 0
+
+
+def test_ocr_text_assembly_preserves_tesseract_line_boundaries() -> None:
+    words, text = _assemble_ocr_lines(
+        {
+            "text": ["ARJUN", "MEHTA", "SUMMARY", "Engineer"],
+            "page_num": [1, 1, 1, 1],
+            "block_num": [1, 1, 1, 1],
+            "par_num": [1, 1, 2, 2],
+            "line_num": [1, 1, 1, 1],
+        }
+    )
+
+    assert words == ["ARJUN", "MEHTA", "SUMMARY", "Engineer"]
+    assert text == "ARJUN MEHTA\nSUMMARY Engineer"
 
 
 class TestOcrExtractionLogic:

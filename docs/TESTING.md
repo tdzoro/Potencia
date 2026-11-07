@@ -3,13 +3,13 @@
 ## Running the suites
 
 ```bash
-cd backend && pytest -q          # 242 tests, hermetic
+cd backend && pytest -q          # 247 tests collected; 242 pass, 5 optional integrations skip
 cd frontend && npm test          # 33 component/form tests (Vitest)
 cd frontend && npm run build     # strict typecheck + production build
 cd frontend && npm run e2e       # 15 browser journeys, needs a live stack
 ```
 
-The backend suite needs no PostgreSQL, no network and no AI provider: it runs on an in-memory SQLite database per test, with uploads in a temporary directory. The browser suite needs a running API and a built web app; it seeds its own account, so it never depends on data already in a database.
+The default backend suite needs no PostgreSQL, no network and no AI provider: it runs on an in-memory SQLite database per test, with uploads in a temporary directory. Four ClamAV integration tests and the live Gemini call are opt-in and skip in that run. The browser suite needs a running API and a built web app; it seeds its own account, so it never depends on data already in a database.
 
 ## Backend
 
@@ -34,7 +34,7 @@ The backend suite needs no PostgreSQL, no network and no AI provider: it runs on
 | Versions | `test_versions.py` | Labels stored and returned, unlabelled stays null, malformed `parent_id` is `422` not `500`, over-length label rejected, field-level comparison including projects and education, identical versions report no changes, cross-resume and cross-account comparison is `404` |
 | Retention | `test_retention.py` | Expired file and row both removed, download link stops serving, unexpired export survives, an expired row without bytes still goes |
 | Document hardening | `test_secure_document_processing.py` | Magic bytes, path traversal, ZIP-bomb ratio, encrypted PDFs, macros, EICAR detection, fail-closed scanning |
-| OCR fallback | `test_ocr.py` | Text-layer bypass, scanned-page detection, preprocessing, confidence aggregation, low-confidence warning, timeout |
+| OCR fallback | `test_ocr.py` | Text-layer bypass, scanned-page detection, Tesseract line-boundary preservation, preprocessing, confidence aggregation, low-confidence warning, timeout |
 | Verification and recovery | `test_verification_and_recovery.py` | Hashed tokens, expiry, replay, non-enumerating responses, reset flow |
 | Tenant isolation | `test_tenant_isolation.py` | A second user gets `404` on every resource of the first, across resumes, revisions, analyses, jobs, matches and exports |
 | Migrations | `test_migrations.py` | Programmatic Alembic `upgrade → downgrade → upgrade` round trip |
@@ -49,6 +49,17 @@ The backend suite needs no PostgreSQL, no network and no AI provider: it runs on
 - **Partial is not absent** — a skill listed but not demonstrated is `partial`; a skill nowhere in the document is `absent`.
 - **Original is immutable** — after a revision is saved, revision 0 is byte-identical.
 - **Idempotency creates nothing** — a replayed create must not add a second row.
+
+### Live ClamAV integration
+
+CI starts a ClamAV daemon and runs the four real scanner integration tests separately from the hermetic suite. Locally, with clamd reachable on port 3310:
+
+```bash
+cd backend
+POTENCIA_TEST_CLAMAV=1 POTENCIA_CLAMAV_ENABLED=true POTENCIA_CLAMAV_HOST=127.0.0.1 POTENCIA_CLAMAV_PORT=3310 .venv/bin/python -m pytest tests/test_clamav_integration.py -q
+```
+
+These exercise a clean PDF, the daemon's EICAR detection over `INSTREAM`, the upload path, and scanner settings.
 
 ## Browser suite
 
@@ -100,9 +111,12 @@ API_BASE_URL=http://127.0.0.1:8010 WEB_URL=http://127.0.0.1:4173 \
 
 # Page one of a real generated report PDF, rendered with PyMuPDF
 PYTHONPATH=backend:. backend/.venv/bin/python scripts/report_page.py
+PYTHONPATH=backend backend/.venv/bin/python scripts/measure_ocr.py  # requires Tesseract
 ```
 
-`readme_charts.py` measures nothing; it reads `metrics.json`, `load.json`, `engine_profile.json` and `calibration.json`. `capture_screenshots.mjs` drives the real UI in Chromium — upload, analysis, job match, an accepted recommendation, a named version, two exports — and screenshots each screen, so an image cannot show a screen that does not work. `report_page.py` seeds its own account, exports an analysis report and rasterises its first page, so the README shows the artefact a user downloads rather than a mock of it.
+`readme_charts.py` measures nothing; it reads `metrics.json`, `load.json`, `engine_profile.json` and `calibration.json`. `measure_ocr.py` builds a reproducible synthetic scan and measures real extraction, word recovery and score drift; its output is `assets/readme/ocr_profile.json`. `capture_screenshots.mjs` drives the real UI in Chromium — upload, analysis, job match, an accepted recommendation, a named version, two exports — and screenshots each screen, so an image cannot show a screen that does not work. `report_page.py` seeds its own account, exports an analysis report and rasterises its first page, so the README shows the artefact a user downloads rather than a mock of it.
+
+The demo account can be seeded against a running API with `PYTHONPATH=backend backend/.venv/bin/python scripts/seed_demo.py --base http://127.0.0.1:8010`. The landing-page CTA is gated behind a demo build: build the frontend with `VITE_DEMO_MODE=1`; the email and password can be overridden with `VITE_DEMO_EMAIL` and `VITE_DEMO_PASSWORD`. Never enable demo mode unless the shared account is intended to be accessible to visitors.
 
 Measurements are taken with the CPU boosted: on an idling laptop the same code reports 2.7 ms for a parse it measures at 0.84 ms at full clock, which is host state, not a regression. The scripts report what they observe and the README quotes the ratio where the absolute number would mislead.
 
@@ -128,4 +142,4 @@ This is one host, one API process and one local PostgreSQL. It catches a regress
 
 - Load figures come from one process on one host, so they bound engine cost and say nothing about multi-node scaling.
 - No fuzzing of the document parsers beyond the malformed fixtures.
-- OCR has no installed engine, so that path is untested end to end (the detection and reporting around it is tested).
+- OCR's end-to-end measurement uses one synthetic scan. It verifies the extraction path and reproducibility, not accuracy across real scanners and document conditions.

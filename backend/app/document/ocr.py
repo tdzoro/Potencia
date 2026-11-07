@@ -170,6 +170,32 @@ def render_pdf_page_as_image(page: fitz.Page, dpi: int = 200) -> np.ndarray:
         del pix
 
 
+def _assemble_ocr_lines(data: dict[str, list]) -> tuple[list[str], str]:
+    """Return recognized words and text with Tesseract's original line breaks."""
+    words: list[str] = []
+    lines: dict[tuple[int, ...], list[str]] = {}
+    has_line_data = all(key in data for key in ("page_num", "block_num", "par_num", "line_num"))
+
+    for i, raw_text in enumerate(data.get("text", [])):
+        text = str(raw_text).strip()
+        if not text:
+            continue
+        words.append(text)
+        if has_line_data:
+            try:
+                key = tuple(
+                    int(data[column][i])
+                    for column in ("page_num", "block_num", "par_num", "line_num")
+                )
+            except (IndexError, TypeError, ValueError):
+                key = (0, 0, 0, i)
+        else:
+            key = (0, 0, 0, 0)
+        lines.setdefault(key, []).append(text)
+
+    return words, "\n".join(" ".join(line) for line in lines.values()).strip()
+
+
 def ocr_image(
     image: np.ndarray,
     page_number: int = 1,
@@ -226,19 +252,14 @@ def ocr_image(
             warnings=["ocr_timeout" if "timeout" in str(exc).lower() else "ocr_failed"],
         )
 
-    # Extract words and confidences
-    words: list[str] = []
-    confidences: list[float] = []
-
-    num_boxes = len(data.get("text", []))
-    for i in range(num_boxes):
-        text_piece = data["text"][i].strip()
-        conf_raw = float(data["conf"][i])
-        if text_piece and conf_raw >= 0:
-            words.append(text_piece)
-            confidences.append(conf_raw)
-
-    page_text = " ".join(words).strip()
+    # Preserve Tesseract's line geometry so downstream section parsing can
+    # distinguish headings and resume entries rather than receiving one long line.
+    words, page_text = _assemble_ocr_lines(data)
+    confidences = [
+        float(conf)
+        for text, conf in zip(data.get("text", []), data.get("conf", []))
+        if str(text).strip() and float(conf) >= 0
+    ]
     word_count = len(words)
 
     if not confidences or word_count == 0:

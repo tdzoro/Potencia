@@ -51,6 +51,46 @@ jobs:
           --health-timeout 5s
           --health-retries 12
 
+  scanning:
+    name: Malware scanning against a real clamd
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Exercise the scanner protocol and the upload path
+        env:
+          POTENCIA_TEST_CLAMAV: "1"
+          POTENCIA_CLAMAV_ENABLED: "true"
+          POTENCIA_CLAMAV_HOST: 127.0.0.1
+          POTENCIA_CLAMAV_PORT: "3310"
+          POTENCIA_SECRET_KEY: ci-secret-key-0123456789abcdefgh
+        # Skipped everywhere else: the rest of the suite must stay hermetic.
+        run: python -m pytest tests/test_clamav_integration.py -q
+    services:
+      clamav:
+        image: clamav/clamav:latest
+        ports: ["3310:3310"]
+        # The daemon downloads its signature database on first start. Without a
+        # generous start period, CI polls a cold clamd and calls it broken.
+        options: >-
+          --health-cmd "clamdscan --ping 5"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 90s
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest
