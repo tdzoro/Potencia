@@ -13,11 +13,13 @@ import pytest
 
 from app.intelligence.scoring.aggregate import SPECS, band_for
 from app.intelligence.scoring.engine import score_resume
+from app.intelligence.taxonomy import contains_skill
 from app.schemas.resume import (
     Bullet,
     Contact,
     EducationEntry,
     ExperienceEntry,
+    ProjectEntry,
     ResumeStructure,
     SectionPresence,
     SkillSet,
@@ -244,6 +246,112 @@ def test_weak_resume_findings_also_reconcile() -> None:
     impact = sum(f.score_impact or 0.0 for f in result.findings)
 
     assert impact == pytest.approx(100.0 - result.bundle.overall, abs=0.1)
+
+
+def test_findings_are_ordered_by_reported_point_impact() -> None:
+    result = score_resume(weak_resume(), extraction_confidence=0.95)
+    impacts = [f.score_impact or 0.0 for f in result.findings]
+
+    assert impacts == sorted(impacts, reverse=True)
+
+
+def test_short_skill_requires_a_whole_mention() -> None:
+    assert not contains_skill("Worked on reports and reviewed results", "R")
+    assert contains_skill("Built reports with R and PostgreSQL", "R")
+    assert contains_skill("Built reports with JavaScript", "JS")
+
+
+def test_short_skill_is_not_substantiated_by_substring() -> None:
+    resume = ResumeStructure(
+        experience=[
+            ExperienceEntry(
+                title="Engineer",
+                organisation="Acme",
+                start="2024-01",
+                end=None,
+                bullets=bullets("Worked on reports and reviewed results"),
+            )
+        ],
+        skills=SkillSet(explicit=["R"]),
+        sections=SectionPresence(experience=True, skills=True),
+    )
+
+    result = score_resume(resume, extraction_confidence=0.95)
+    criteria = {criterion.criterion: criterion for criterion in result.criteria}
+
+    assert criteria["SK-04"].subscore == 0.0
+    assert criteria["EX-05"].subscore == 0.0
+    assert criteria["SK-05"].subscore == 0.0
+
+
+def test_a_summary_mention_is_still_only_a_claim() -> None:
+    resume = ResumeStructure(
+        summary=SummaryBlock(
+            present=True,
+            text="Engineer with deep Kubernetes experience across production platforms.",
+        ),
+        experience=[
+            ExperienceEntry(
+                title="Engineer",
+                organisation="Acme",
+                start="2024-01",
+                end=None,
+                bullets=bullets("Delivered the billing service used by 300 customers"),
+            )
+        ],
+        skills=SkillSet(explicit=["Kubernetes"]),
+        sections=SectionPresence(summary=True, experience=True, skills=True),
+    )
+
+    result = score_resume(resume, extraction_confidence=0.95)
+    criteria = {criterion.criterion: criterion for criterion in result.criteria}
+
+    assert criteria["SK-04"].subscore == 0.0
+    assert criteria["EX-05"].subscore == 0.0
+
+
+def test_project_technologies_substantiate_a_skill() -> None:
+    resume = ResumeStructure(
+        experience=[
+            ExperienceEntry(
+                title="Engineer",
+                organisation="Acme",
+                start="2024-01",
+                end=None,
+                bullets=bullets("Delivered the billing service used by 300 customers"),
+            )
+        ],
+        projects=[ProjectEntry(name="Ledger", technologies=["Kubernetes"])],
+        skills=SkillSet(explicit=["Kubernetes"]),
+        sections=SectionPresence(experience=True, skills=True, projects=True),
+    )
+
+    result = score_resume(resume, extraction_confidence=0.95)
+    criteria = {criterion.criterion: criterion for criterion in result.criteria}
+
+    assert criteria["SK-04"].subscore == 1.0
+    assert criteria["EX-05"].subscore == 0.0
+
+
+def test_unparseable_end_date_is_not_treated_as_current() -> None:
+    resume = ResumeStructure(
+        experience=[
+            ExperienceEntry(
+                title="Engineer",
+                organisation="Acme",
+                start="2024-01",
+                end="sometime",
+                bullets=bullets("Delivered billing services in Kubernetes"),
+            )
+        ],
+        skills=SkillSet(explicit=["Kubernetes"]),
+        sections=SectionPresence(experience=True, skills=True),
+    )
+
+    result = score_resume(resume, extraction_confidence=0.95)
+    criteria = {criterion.criterion: criterion for criterion in result.criteria}
+
+    assert criteria["SK-05"].subscore == 0.0
 
 
 def test_every_finding_has_evidence_and_an_explanation() -> None:

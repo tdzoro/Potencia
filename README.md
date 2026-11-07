@@ -1,33 +1,41 @@
 <div align="center">
 
-<img src="assets/brand/potencia-logo.png" alt="POTENCIA" width="640" />
+<img src="assets/brand/potencia-logo.png" alt="POTENCIA" width="560" />
 
 ### Beyond Your Resume. Unleash Your Potential.
 
-**AI Resume Intelligence — deterministic scoring, ATS compatibility, job matching, and edits you approve.**
+**Resume intelligence with a receipt for every point.**
 
-[![Tests](https://img.shields.io/badge/tests-247%20backend%20%C2%B7%2033%20unit%20%C2%B7%2015%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
+Deterministic scoring · ATS compatibility · job matching · edits you approve.
+
+[![Tests](https://img.shields.io/badge/tests-253%20backend%20%C2%B7%2033%20unit%20%C2%B7%2015%20browser-6D3BF5?style=flat-square)](docs/TESTING.md)
 [![API](https://img.shields.io/badge/API-37%20operations-22D3EE?style=flat-square)](docs/API.md)
 [![Methodology](https://img.shields.io/badge/scoring-v1.0.0-8B5CF6?style=flat-square)](docs/SCORING_METHODOLOGY.md)
-[![Engine](https://img.shields.io/badge/pipeline-2.12%20ms%20p50-0EA5E9?style=flat-square)](docs/PROJECT_STATUS.md)
+[![Engine](https://img.shields.io/badge/pipeline-2.09%20ms%20p50-0EA5E9?style=flat-square)](docs/PROJECT_STATUS.md)
 [![Licence](https://img.shields.io/badge/licence-proprietary-9AA3C7?style=flat-square)](LICENSE)
 
 </div>
 
+<img src="assets/readme/ui-dashboard.png" alt="POTENCIA dashboard: score, category breakdown, ATS estimate and priority actions" />
+
+<p align="center"><sub>Real product, real analysis — captured by <code>scripts/capture_screenshots.mjs</code> against a seeded demo account (a separate run from the measured sample in §03). Nothing mocked.</sub></p>
+
 ---
 
-## The premise
+## 01 — The thesis
 
-Every resume tool gives you a number. Very few can tell you where the number came from — and fewer still will refuse to invent one.
+Every resume tool gives you a number. Almost none can tell you which sentence cost you a point, and fewer still will refuse to invent one.
 
-POTENCIA is built on a single constraint: **the score is arithmetic over evidence, not an opinion.** A rule set reads the document, extracts what is genuinely there, measures 30 criteria, and quotes the line that caused each deduction. The same document always produces the same score — not because it is cached, but because nothing random is in the path.
+POTENCIA is built on one constraint: **the score is arithmetic over evidence, not an opinion.**
 
-| | The question users actually ask | What answers it |
+| The question | The mechanism | The receipt |
 |:--|:--|:--|
-| **01** | Is this resume any good? | 30 weighted criteria across 6 categories, reconciled to the point |
-| **02** | Will software even read it? | Structural ATS compatibility estimate, hazards named and ranked |
-| **03** | Does it fit *this* job? | Requirement extraction, then three-state skill matching |
-| **04** | What do I change first? | Findings ordered by points lost, each with a quoted line and a fix |
+| Is this resume any good? | 30 criteria across 6 weighted categories | Category score, weight and contribution |
+| Will software read it? | Structural ATS estimate, 5 checks | Pass / warn / not-applicable per check |
+| Does it fit *this* job? | Requirement extraction + four-outcome skill matching | Matched, partial, absent — never collapsed |
+| What do I fix first? | Findings sorted by points lost | Verbatim source line + a concrete remedy |
+
+**Numbers come from rules. Prose may come from a model.** No provider, SDK or network call sits in the scoring path. AI rewrites are optional, schema-validated and can never move a score.
 
 ```mermaid
 flowchart LR
@@ -49,9 +57,7 @@ flowchart LR
 
 ---
 
-## Inside the product
-
-Real screens from the running application, captured by `scripts/capture_screenshots.mjs` — it seeds an account through the API, runs the whole journey, and photographs the result. Nothing is mocked.
+## 02 — Inside the product
 
 <table>
 <tr>
@@ -60,59 +66,46 @@ Real screens from the running application, captured by `scripts/capture_screensh
 <b>Report.</b> Overall score, category breakdown, ATS estimate and the priority queue — every deduction carrying its source line.
 </td>
 <td width="50%" valign="top">
-<img src="assets/readme/ui-dashboard.png" alt="Dashboard" /><br/>
-<b>Dashboard.</b> What the last analysis concluded, with the next action already chosen.
+<img src="assets/readme/ui-match.png" alt="Job matching" /><br/>
+<b>Job match.</b> <i>Partial</i> is its own state: claimed in the skills list, never demonstrated in a role.
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="assets/readme/ui-match.png" alt="Job matching" /><br/>
-<b>Job matching.</b> Partial is its own state: claimed in the skills list, never demonstrated in a role.
+<img src="assets/readme/ui-studio.png" alt="Improvement studio" /><br/>
+<b>Studio.</b> Edit summary, bullets, skills, projects and education. A save creates a revision; it never overwrites the original.
 </td>
 <td width="50%" valign="top">
-<img src="assets/readme/ui-studio.png" alt="Improvement studio" /><br/>
-<b>Studio.</b> Edit summary, bullets, skills, projects and education; a save is a new revision, never an overwrite.
+<img src="assets/readme/ui-recommendations.png" alt="Recommendations" /><br/>
+<b>Recommendations.</b> Rewrites where the text supports one, questions where it does not.
 </td>
 </tr>
 </table>
 
 <details>
-<summary><b>More screens — recommendations, export, history, landing</b></summary>
+<summary><b>Export, history and landing screens</b></summary>
 
 <table>
 <tr>
-<td width="50%" valign="top"><img src="assets/readme/ui-recommendations.png" alt="Recommendations" /><br/><b>Recommendations.</b> Rewrites where the text supports one, questions where it does not.</td>
-<td width="50%" valign="top"><img src="assets/readme/ui-export.png" alt="Export" /><br/><b>Export.</b> Choose the version, generate a PDF or DOCX, download through a signed 15-minute URL.</td>
+<td width="50%" valign="top"><img src="assets/readme/ui-export.png" alt="Export" /><br/><b>Export.</b> Pick a named version; download PDF or DOCX through a signed 15-minute URL.</td>
+<td width="50%" valign="top"><img src="assets/readme/ui-history.png" alt="History" /><br/><b>History.</b> Resumes and analyses, newest first, with keyset cursors.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="assets/readme/ui-history.png" alt="History" /><br/><b>History.</b> Uploaded resumes and their analyses, newest first with keyset cursors.</td>
-<td width="50%" valign="top"><img src="assets/readme/ui-landing.png" alt="Landing" /><br/><b>Landing.</b> The commitments, stated before the product asks for a file.</td>
+<td colspan="2" valign="top"><img src="assets/readme/ui-landing.png" alt="Landing page" /><br/><b>Landing.</b> The commitments, stated before the product asks for a file.</td>
 </tr>
 </table>
 
 </details>
 
----
+<img src="assets/readme/report-first-page.png" alt="First page of the generated PDF analysis report" width="720" />
 
-## What you actually download
-
-<img src="assets/readme/report-first-page.png" alt="First page of the generated PDF analysis report" width="680" />
-
-The PDF is not a screenshot of the app. It is rendered from the stored analysis — scores, the weights behind them, the ATS checks and the finding queue — and the improved resume renders through the same layout as PDF and DOCX.
-
-| Export | Format | Built from |
-|:--|:--|:--|
-| Analysis report | PDF | the stored analysis, its findings and ATS checks |
-| Improved resume | PDF / DOCX | the newest approved revision, or a version you pick by name |
-| Version comparison | inline | any two revisions, field by field |
-
-Every generated document is re-opened by a parser in the test suite and searched for the score and content it claims to contain — "a file was created" is not the same as "the file is correct".
+<p align="center"><sub>The exported report is rendered from the stored analysis — scores, weights, ATS checks and the finding queue. Every generated document is re-opened and checked by a parser in the test suite.</sub></p>
 
 ---
 
-## Proof, not adjectives
+## 03 — One document, measured end to end
 
-One resume — 87 words, 2 roles, 4 bullets, 7 listed skills — through the finished pipeline against PostgreSQL. Every figure is produced by `scripts/readme_metrics.py` and stored in [`assets/readme/metrics.json`](assets/readme/metrics.json).
+A single resume — **87 words, 2 roles, 4 bullets, 7 listed skills** — through the finished pipeline against PostgreSQL. Source: [`assets/readme/metrics.json`](assets/readme/metrics.json), produced by `scripts/readme_metrics.py`.
 
 <table>
 <tr>
@@ -124,10 +117,9 @@ One resume — 87 words, 2 roles, 4 bullets, 7 listed skills — through the fin
 |:--|--:|
 | Words / bullets | 87 / 4 |
 | Experience entries | 2 |
-| Explicit skills | 7 |
-| Inferred skills | 1 |
-| Extraction method | text layer |
-| Overall score | **82.6** / 100 |
+| Explicit / inferred skills | 7 / 1 |
+| Extraction | text layer |
+| **Overall score** | **82.6 / 100** |
 | Band | strong |
 
 </td>
@@ -137,63 +129,28 @@ One resume — 87 words, 2 roles, 4 bullets, 7 listed skills — through the fin
 
 | Metric | Value |
 |:--|--:|
-| ATS compatibility | **88.2** / 100 |
-| Findings raised | 13 |
+| ATS compatibility | **88.2 / 100** |
+| Criteria measured | 30 |
+| Findings | 13 (2 high · 6 medium · 5 low) |
 | Priority actions | 5 |
 | Recommendations | 13 |
-| Job match | **49.0** / 100 |
-| High / medium / low findings | 2 / 6 / 5 |
-| Criteria measured | 30 |
+| Job match | **49.0 / 100** |
 
 </td>
 </tr>
 </table>
 
-The report reconciles with itself: the 13 findings' impacts sum to **17.4 points**, which is exactly `100 − 82.6`. That identity is a test, not a claim — if the findings stop explaining the score, the suite fails.
+The report reconciles with itself: the 13 findings' impacts sum to **17.4 points**, exactly `100 − 82.6`. That identity is a test, not a slogan — if the findings stop explaining the score, CI fails.
 
 ---
 
-## Documents are hostile until proven otherwise
-
-A resume upload is untrusted binary data, so it is treated that way before any text is read.
-
-| Stage | What happens |
-|:--|:--|
-| Identity | Extension, magic bytes and MIME must agree; a renamed executable is rejected |
-| Malware | Streamed to ClamAV over its `INSTREAM` protocol before storage; infected uploads never reach the parser |
-| Container abuse | Caps on PDF pages, DOCX archive entries and compression ratio; encrypted PDFs, macros and embedded executables are refused |
-| Filename | Path traversal, null bytes, control characters and reserved device names stripped |
-| Storage | Content-addressed by SHA-256, mode `0600`, no path ever returned to a client, bytes deleted if extraction fails |
-
-**Failure policy is the interesting part.** In production — or whenever `POTENCIA_CLAMAV_REQUIRED=true` — a scanner timeout or unreachable daemon returns `503` and the upload stops. Unscanned is not the same as clean. In development the daemon is optional, and the file is accepted with `scanned: false` recorded rather than silently assumed safe.
-
-### Scanned resumes: OCR as a fallback, not a default
-
-Text-layer extraction is tried first because it is exact. Only when a PDF has no usable text layer does the OCR path open:
-
-```mermaid
-flowchart LR
-    A[PDF] --> B{Usable text<br/>layer?}
-    B -- yes --> C[Extract directly<br/>confidence 1.0]
-    B -- no --> D[Render pages<br/>200 DPI]
-    D --> E[Grayscale · CLAHE<br/>denoise · deskew]
-    E --> F[Tesseract<br/>word confidences]
-    F --> G[Assemble in page order<br/>record mean confidence]
-```
-
-Preprocessing is not decoration: adaptive contrast (CLAHE) and deskew are what make a photographed page legible to Tesseract. Word-level confidences are averaged into the extraction confidence the scorer already uses, so a poor scan lowers every category's confidence and caps the ATS estimate instead of producing a confidently wrong report. OCR text keeps Tesseract's line boundaries so headings and entries remain parseable. An ordinary digital PDF never pays the OCR cost.
-
-A reproducible synthetic one-page scan (200 DPI, 1.3° skew, Gaussian noise σ7, JPEG quality 65) ran through the production extraction path with Tesseract 5.3.4. It recovered all 161 fixture words (F1 1.000); the text-layer resume scored 92.1 and the OCR copy 91.8, with ATS estimates 88.2 and 86.5 respectively. OCR took 525 ms p50 (543 ms p95, 649 ms max) versus 1.19 ms p50 for text-layer extraction on this host. This is a single synthetic fixture, not a general accuracy or latency benchmark; the full sample and timings are in [`ocr_profile.json`](assets/readme/ocr_profile.json), and `scripts/measure_ocr.py` reproduces them.
-
----
-
-## The scoring model
+## 04 — The scoring model
 
 ```
-overall = Σ (category_score × weight) / Σ (weight of applicable categories)
+overall = 100 × Σ(category_score × weight) / Σ(weight of applicable categories)
 ```
 
-| Category | Weight | Score | Contribution |
+| Category | Weight | Sample | Contribution |
 |:--|--:|--:|--:|
 | Content quality | 25 | 78.4 | 19.60 |
 | Experience & achievements | 20 | 86.9 | 17.38 |
@@ -203,75 +160,76 @@ overall = Σ (category_score × weight) / Σ (weight of applicable categories)
 | Language & readability | 10 | 74.5 | 7.45 |
 | **Total** | **100** | | **82.59 → 82.6** |
 
-<img src="assets/readme/contribution.png" alt="Category scores against their ceilings" />
+<img src="assets/readme/contribution.png" alt="Category score against its ceiling" />
 
-Four rules do the heavy lifting:
+**Why this structure holds together**
 
-1. **Missing is not zero.** A category that does not apply leaves the denominator instead of scoring 0 — a fresher is not punished for having no employment history. The report states the applicable weight (here 100 of 100).
-2. **Every deduction cites text.** A criterion that fires must attach a verbatim excerpt; a finding without evidence is a bug, and the API refuses to serialise one.
-3. **Confidence is a first-class output.** Extraction quality lowers every category's confidence and caps the ATS estimate, so a badly-read document can never present as a clean one.
-4. **No model in the number.** The scoring path contains no provider, SDK or network call. A score that changes when a third party is unavailable would not be a score.
+1. **Missing is not zero.** A category that does not apply leaves the denominator. A first-time candidate with no work history is scored on what they presented, with `applicable_weight: 80` stated plainly — not punished for a section they never had.
+2. **Every deduction cites text.** An applicable criterion below 1.0 must emit a finding with a verbatim excerpt. The aggregator raises rather than reporting an unexplained deduction.
+3. **Evidence is measured in whole mentions.** Skill checks reuse the taxonomy's boundary-aware matcher, so `R` is not "found" inside `worked`, and aliases such as `JS` still match `JavaScript`. A summary mention is a claim, not demonstrated use.
+4. **Confidence is an output.** Extraction quality lowers category confidence and caps the ATS estimate, so a badly-read scan cannot present as a clean document.
+5. **No model in the number.** The only clock input is the UTC calendar year for recency and career-span checks; no randomness, sampling or third-party call. Stored analyses keep the methodology version that produced them.
+
+The top band is gated too: a resume cannot reach **Exceptional** with weak quantification (CQ-03) or unverifiable skills (SK-04), whatever the arithmetic says. Full rubric: [`docs/SCORING_METHODOLOGY.md`](docs/SCORING_METHODOLOGY.md).
 
 ---
 
-## Findings: severity is a work queue
+## 05 — Findings are a work queue, not a warning list
 
-<img src="assets/readme/findings.png" alt="Findings by severity" />
+<img src="assets/readme/findings.png" alt="Findings by severity" width="720" />
 
-13 findings — **2 high, 6 medium, 5 low** — ordered by impact rather than severity, so the first action buys the most points. The top of the real queue:
+Findings are ordered by **points lost**, then severity, so the first action buys the most. The top of the real queue on the 82.6 sample:
 
 | Points | Severity | Criterion | Finding | Evidence quoted |
 |--:|:--|:--|:--|:--|
-| −3.1 | high | CQ-03 | Achievements are described but not measured | *"Worked on latency improvements"* |
-| −3.0 | high | SK-04 | Skills claimed but never demonstrated | *"Django, PostgreSQL, Docker, AWS, Kubernetes, Redis"* |
-| −1.8 | medium | AT-04 | Date formats are mixed | *"month, year"* |
-| −1.7 | medium | SK-05 | Skills not evidenced recently | *"Python"* |
-| −1.4 | medium | EX-05 | Claimed skills disconnected from experience | *"aws, django, docker, kubernetes, postgresql"* |
-| −1.3 | medium | LR-02 | Verb tense does not match role status | *"Built a ledger service handling 2M daily transactions"* |
-| −1.2 | medium | EX-04 | Career progression is not legible | *"Backend Engineer"* |
+| −3.12 | high | CQ-03 | Achievements are described but not measured | *"Worked on latency improvements"* |
+| −2.98 | high | SK-04 | Skills claimed but never demonstrated | *"Django, PostgreSQL, Docker, AWS, Kubernetes, Redis"* |
+| −1.76 | medium | AT-04 | Date formats are mixed | *"month, year"* |
+| −1.71 | medium | SK-05 | Skills not evidenced recently | *"Python"* |
+| −1.43 | medium | EX-05 | Claimed skills disconnected from experience | *"aws, django, docker, kubernetes, postgresql"* |
 
-Each carries an explanation and a remedy. "Unquantified achievement" does not produce a guessed number; it produces a question.
+An unquantified achievement never produces a guessed number. It produces a question: *"What scale did this work operate at — records, requests per day, users, revenue, or time saved? Add the real figure."*
 
 ---
 
-## Does the rubric hold? A harness, not a claim
+## 06 — Calibration: measured, and honestly bounded
 
-`scripts/calibrate.py` parses eight fixtures with the real parser, scores them with the real engine, and measures whether each candidate weight vector ranks them the way the rubric did.
+`scripts/calibrate.py` parses eight fixtures with the real parser, scores them with the real engine, and compares five weight vectors against the rubric's tiers.
 
 | Candidate | Spearman ρ | Pairwise accuracy | Tier spread |
 |:--|--:|--:|--:|
 | **shipped (v1.0.0)** | **0.909** | **0.920** | **39.4** |
 | equal-weights | 0.909 | 0.920 | 40.8 |
-| ats-heavy | 0.909 | 0.920 | 34.3 |
+| ATS-heavy | 0.909 | 0.920 | 34.3 |
 | content-heavy | 0.873 | 0.880 | 40.7 |
 | experience-heavy | 0.873 | 0.880 | 37.7 |
 
-<img src="assets/readme/calibration.png" alt="Calibration: rank agreement per candidate weight vector" />
+<img src="assets/readme/calibration.png" alt="Rank agreement per candidate weight vector" />
 
-No alternative beats the shipped vector, so the weights stay — and the claim is now reproducible rather than asserted. **Spearman ρ** asks whether the ranking survives; **pairwise accuracy** asks how often any two fixtures are ordered correctly; **tier spread** asks whether the score actually separates a weak resume from a strong one (it spans **46.4 – 88.3** across the corpus).
+**The honest reading.** No alternative beats the shipped vector on rank agreement. Two tie it (equal-weight and ATS-heavy), and equal-weight has a marginally larger tier spread (40.8 vs 39.4). Eight authored fixtures cannot distinguish these vectors, so the weights remain a **documented product-design choice**, not an optimised or validated result. The corpus spans 46.4 – 88.3; the raw output is in [`calibration.json`](assets/readme/calibration.json), including that caveat.
 
-This is still **not** an empirical validation: the tiers are rubric-assigned fixtures, not recruiter rankings. That distinction is in `docs/SCORING_METHODOLOGY.md`, in the script's own output, and in [`assets/readme/calibration.json`](assets/readme/calibration.json).
+What would justify a stronger claim is a study, not more fixtures: ≥ 200 consented resumes, two independent raters per resume (target Cohen's κ ≥ 0.7), fitted weights and a held-out test set. That protocol is written down in §9 of the methodology.
 
 ---
 
-## Matching: three states, never two
+## 07 — Matching: four outcomes, never two
 
-A skill in a job description has three possible positions relative to a resume. Most tools collapse them into two and end up telling people to add skills they already have.
+Most tools collapse this into match / no-match, then tell people to add skills they already have. POTENCIA keeps every distinction the evidence supports.
 
 ```mermaid
 flowchart LR
     A[Skill in job description] --> B{In resume at all?}
-    B -- no --> C[<b>absent</b><br/>Not present anywhere]
+    B -- no --> C[<b>absent</b>]
     B -- yes --> D{Claimed in the skills list?}
     D -- yes --> E{Used in a role or project?}
-    E -- yes --> F[<b>matched</b><br/>Claimed and demonstrated]
-    E -- no --> G[<b>partial</b><br/>Claimed, never shown]
-    D -- no --> H[<b>weakly demonstrated</b><br/>Shown, never claimed]
+    E -- yes --> F[<b>matched</b>]
+    E -- no --> G[<b>partial</b>]
+    D -- no --> H[<b>weakly demonstrated</b>]
 ```
 
 On the sample job description — 4 required, 2 preferred — the result is **49.0**:
 
-| Requirement | Status | Meaning in the report |
+| Requirement | Status | Meaning |
 |:--|:--|:--|
 | Python | matched | Listed *and* used in a bullet |
 | PostgreSQL | partial | Listed, never demonstrated |
@@ -280,213 +238,112 @@ On the sample job description — 4 required, 2 preferred — the result is **49
 | Kafka *(preferred)* | absent | Nowhere in the document |
 | GraphQL *(preferred)* | absent | Nowhere in the document |
 
-The number reads low, and it should: the candidate claims seven technologies and demonstrates one. That is the finding, not a bug — an unevidenced claim is worth less than a visible gap, so the gap advice says *"do not add it unless you have genuinely used it."*
+The low number is the finding, not a bug: the candidate claims seven technologies and demonstrates one. The gap advice says *"do not add it unless you have genuinely used it."*
 
 ---
 
-## ATS compatibility: an estimate, stated as one
+## 08 — ATS compatibility: an estimate, stated as one
 
-The ATS figure separates **document parseability** from **job keyword relevance** — two different questions that tools routinely merge into one misleading number.
-
-| Check | Result on the sample | Why it matters |
+| Check | Sample | Why it matters |
 |:--|:--|:--|
 | AT-01 Extraction fidelity | pass | If text does not extract, nothing downstream survives |
 | AT-02 Reading order | pass | Columns reflow in unpredictable order |
-| AT-03 Structural hazards | *not applicable* | The parser reported no layout hazards; assuming none would be a guess |
+| AT-03 Structural hazards | *n/a* | The parser reported no hazards; assuming none would be a guess |
 | AT-04 Date parseability | **warn** | Mixed formats are readable here, fragile elsewhere |
-| AT-05 Contact parseability | pass | Email and phone recoverable as text |
+| AT-05 Contact parseability | pass | Email and phone are recoverable as text |
 
-3 pass, 1 warn, 1 not applicable → **88.2**. The disclaimer travels with the number in the API payload, the report and the PDF:
+3 pass, 1 warn, 1 not applicable → **88.2**. Extraction confidence below 0.5 caps the estimate at 55 no matter how tidy the layout looks, and a check that cannot be evaluated leaves the denominator.
 
 > ATS compatibility estimate. Not a prediction of screening outcomes.
 
-Two design decisions are visible in the arithmetic: a document whose extraction confidence falls below 0.5 is **capped at 55** no matter how tidy its formatting looks, and a check that cannot be evaluated leaves the denominator rather than being scored as a failure.
+The disclaimer travels with the number in the API payload, the report and the PDF.
 
 ---
 
-## Recommendations that ask instead of invent
+## 09 — Performance, measured
 
-13 recommendations from 13 findings: concrete rewrites where the text supports one, questions where it does not.
-
-| Situation | What POTENCIA does | What it will never do |
-|:--|:--|:--|
-| Bullet has no metric | Asks *"What scale did this work operate at — records, requests per day, users, revenue, or time saved? Give the real figure."* | Insert a plausible number |
-| Weak opener ("Responsible for…") | Proposes "Owned …" | Invent scope |
-| Skill claimed, never used | Points at the gap and asks which role used it | Add a project |
-| Anything factual | Requires your decision in the studio | Auto-replace your resume |
-
-The original parse is **revision 0** and is never overwritten. An edit is a new node pointing at its parent, so history is a tree you can always walk back — and any two versions compare field by field.
-
----
-
-### Optional AI rewrites, off by default
-
-Set `GEMINI_API_KEY` and the recommendation engine may propose rewrites through `GeminiRewriteProvider` (`google-genai`). Four rules bound it:
-
-| Rule | Enforcement |
-|:--|:--|
-| **It cannot score** | No provider appears anywhere in the scoring path; a proposal never changes a criterion, category or ATS figure |
-| **It cannot invent** | Prompts forbid new employers, degrees, skills, metrics; a missing figure becomes a question for the user |
-| **It cannot be instructed by the document** | Resume text is treated as untrusted data, bounded by delimiters, and never concatenated as instructions |
-| **It cannot break the request** | Missing key, timeout, rate limit or malformed JSON falls back to the deterministic rules; proposals are schema-validated before use |
-
-Proposals are labelled with their source and remain proposals: the user accepts, edits or rejects each one in the studio. Without a key the product is fully functional and entirely rules-driven.
-
----
-
-## Performance, measured
-
-`scripts/profile_engine.py` times the deterministic pipeline with no HTTP, no database and no network. 200 warm runs over eight documents:
+`scripts/profile_engine.py` — 200 warm runs over eight documents, no HTTP, no database, no network:
 
 | Stage | p50 | p95 | p99 |
 |:--|--:|--:|--:|
-| Parse | **0.84 ms** | 0.99 ms | 1.10 ms |
-| Score (30 criteria) | **0.41 ms** | 0.52 ms | 0.89 ms |
-| Parse + score | **1.58 ms** | 2.56 ms | 4.02 ms |
-| Job match (12 requirements) | **0.07 ms** | 0.11 ms | 0.20 ms |
-| Recommendations | **0.06 ms** | 0.07 ms | 0.09 ms |
-| **Full pipeline** | **2.12 ms** | 2.89 ms | 3.49 ms |
+| Parse | **1.13 ms** | 1.27 ms | 1.45 ms |
+| Score (30 criteria) | **1.26 ms** | 1.67 ms | 2.30 ms |
+| Parse + score | **2.10 ms** | 2.38 ms | 3.60 ms |
+| Job match (12 requirements) | **0.05 ms** | 0.06 ms | 0.07 ms |
+| Recommendations | **0.04 ms** | 0.05 ms | 0.05 ms |
+| **Full pipeline** | **2.09 ms** | 2.35 ms | 3.73 ms |
 
-Cold start — the first call in a process, paying for imports and regex compilation — is 1.15 ms to parse and 1.01 ms to score.
+Cold start: 1.69 ms to parse, 2.32 ms to score. Sequential stage measurements share a shifting CPU clock, so the full pipeline is the stable number.
 
 <img src="assets/readme/scaling.png" alt="Cost per kilobyte and per requirement" />
 
-Cost per kilobyte **falls** as documents grow (1.98 → 1.16 ms/KB across an 8× range), and matching is linear in requirement count (0.038 → 0.014 ms per requirement). Neither curve is a coincidence: the matching engine prepares the resume once per match, and the heading table is ordered once at import.
+Cost per kilobyte flattens with document size (2.05 → 1.64 ms/KB across an 8× range) and matching is linear in requirement count. Neither is accidental: the heading table is ordered once at import, and the resume is prepared once per match instead of once per requirement.
 
-### What the profile changed
-
-The first profile found two shapes worth fixing, with evidence rather than intuition:
-
-| Fault | Evidence | Fix |
-|:--|:--|:--|
-| Heading table re-sorted **per line** | ~40% of parse time in one profile | Ordered once at import, bucketed by first word |
-| Resume body re-read **per required skill** | A 40-skill match read the document 40 times | One prepared view per match |
-| Skill normalisation uncached | `_normalise_key` 4.8 ms per corpus | Bounded `lru_cache` |
-| Quadratic duplicate count; verb extracted twice | `list.count` in a loop | `Counter`; leads computed once |
-
-| Stage (same host, same script) | Before | After | Change |
-|:--|--:|--:|--:|
-| Parse | 2.92 ms | **0.77 ms** | **3.8×** |
-| Score | 1.30 ms | **0.37 ms** | 3.5× |
-| Job match, 12 requirements | 0.69 ms | **0.06 ms** | 11.5× |
-| Job match, 40 requirements | 3.10 ms | **0.40 ms** | 7.8× |
-| Full pipeline | 6.17 ms | **1.61 ms** | 3.8× |
-
-Two caveats, because they matter: absolute milliseconds track CPU clock — the same code profiled on an idling laptop at 1.3 GHz reports 2.7 ms for the parse it measures at 0.84 ms boosted — so the **ratio** is the claim, not the microsecond count. And six guardrail tests (`test_performance.py`) now fail if the document is read more than once per match or the heading table is sorted per line, so the regression is caught rather than remembered.
-
-### Request latency
-
-End to end over HTTP against PostgreSQL, 20 runs each, plus one first-analysis call:
-
-| Operation | p50 | Notes |
-|:--|--:|:--|
-| Upload + parse | 38.2 ms | includes multipart, validation, extraction |
-| Analysis — first call | 34.5 ms | pays for connection setup |
-| Analysis — steady | **16.7 ms** | p95 20.7 ms |
-| Recommendations | 68.8 ms | 13 rules persisted, not just computed |
-| Job match | 32.3 ms | 6 requirements |
-| PDF report export | 112.1 ms | p95 240.3 ms max — rendering dominates |
-
-<img src="assets/readme/latency.png" alt="Analysis latency across runs" />
-
-These are **request** latencies: authentication, JSON, database and HTTP are inside the number, and they move by tens of percent between runs on a shared machine. The controlled measurement is the engine profile above.
-
-### Under concurrency
-
-`scripts/load_test.py`, 8 clients, 200 analyses, rate limiter disabled so the run measures the engines rather than the throttle:
-
-| Metric | Value |
+| Request path (HTTP + PostgreSQL, 20 runs) | p50 |
 |:--|--:|
-| Analyses completed | **200 / 200** (0 failed) |
-| Wall time | 3.31 s |
-| Throughput | **60.5 analyses/s** |
-| Latency p50 / p95 / p99 | **90.4 / 129.7 / 189.1 ms** |
-| Slowest | 207.8 ms |
+| Upload + parse | 38.2 ms |
+| Analysis, first call | 34.5 ms |
+| Analysis, steady | **16.7 ms** (p95 20.7) |
+| Recommendations | 68.8 ms |
+| Job match | 32.3 ms |
+| PDF report export | 112.1 ms |
 
 <img src="assets/readme/load.png" alt="Latency under eight concurrent clients" />
 
-The two numbers describe the same queue: eight clients at a 90 ms median would suggest ~88 asks/s if nothing contended, and the 60.5 measured corresponds to roughly 5.5 requests genuinely in flight — one process, one GIL, one database connection pool. An earlier run of the same script measured 77.4 analyses/s on this machine, so throughput is published as a bound on cost, never as a capacity plan.
+Under **8 concurrent clients / 200 analyses** (`scripts/load_test.py`): **200 / 200 completed**, 3.31 s wall time, **60.5 analyses/s**, p50 **90.4 ms**, p95 129.7 ms, p99 189.1 ms. The same script measured 77.4 analyses/s on this host earlier, so this is a cost bound, not a capacity plan. Absolute milliseconds track CPU clock; ratios transfer better than microseconds.
 
 ---
 
-## Reliability that is enforced, not aspirational
+## 10 — Hardening and reliability
 
-| Concern | Behaviour |
+A resume upload is untrusted binary data, so it is treated that way before any text is read.
+
+| Control | Behaviour |
 |:--|:--|
-| Double submits | `X-Idempotency-Key` replays the original response for 24h; reusing a key on another endpoint is `409` |
-| Paging | Keyset cursors on UUIDv7 — rows arriving mid-walk never duplicate or skip |
-| Cross-worker limits | Redis-backed counters when `POTENCIA_REDIS_URL` is set; process memory otherwise, logged at startup |
-| Downloads | HMAC-signed, account-bound, 15-minute capability URLs |
-| Retention | Exports expire in 24h; a scheduled `app.tasks.retention` service deletes files **and** rows |
-| Versions | One resume, several named versions; any two compare field by field, any one exports by name |
-| Failures | Uniform error envelope with a request id; no stack traces or internal paths reach a client |
+| File identity | Extension, magic bytes and MIME must agree; renamed executables refused |
+| Malware | Streamed to ClamAV `INSTREAM` before storage; fail-closed in production |
+| Container abuse | Caps on PDF pages, DOCX entries and compression ratio; macros and encrypted PDFs refused |
+| Storage | Content-addressed SHA-256, mode `0600`, no path returned to a client |
+| Auth | bcrypt; 15-min access JWT, 14-day refresh, `token_version` revocation |
+| Isolation | Row-level `user_id`; another account's resource returns `404` |
+| Downloads | HMAC-signed, account-bound, 15-minute capability URL |
+| Double submits | `X-Idempotency-Key` replays for 24 h; cross-endpoint reuse is `409` |
+| Paging | Keyset cursors on UUIDv7 — no duplicates or skips mid-walk |
+| Retention | Exports expire in 24 h; a scheduled service deletes files **and** rows |
+| Failures | Uniform error envelope with a request id; no stack traces leave the server |
+
+Scanned PDFs take an OCR fallback only when the text layer is unusable: render at 200 DPI, grayscale + CLAHE + denoise + deskew, Tesseract, then mean word confidence feeds the extraction confidence the scorer already uses. An ordinary digital PDF never pays that cost.
+
+**Measured on one reproducible synthetic scan** (200 DPI, 1.3° skew, σ7 noise, JPEG 65, Tesseract 5.3.4): 161/161 words recovered (F1 1.000), score 92.1 → 91.8, ATS 88.2 → 86.5, OCR p50 525 ms versus 1.19 ms for text-layer extraction. One fixture — a shape and a cost, not a scanner benchmark. See [`ocr_profile.json`](assets/readme/ocr_profile.json).
 
 ---
 
-## Architecture
+## 11 — Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Client
-        UI[React 18 · TypeScript · Tailwind<br/>Router · TanStack Query]
-    end
-    subgraph API["API — FastAPI"]
-        R[Routes<br/>auth · resumes · analyses · jobs<br/>matches · recommendations · exports]
-        S[Services<br/>ownership · orchestration · export]
-        X[Cross-cutting<br/>idempotency · rate limits · pagination]
-    end
-    subgraph Intelligence["Intelligence — deterministic"]
-        D[Document<br/>validate · extract]
-        P[Parser<br/>sections · entities · confidence]
-        SC[Scoring<br/>30 criteria · 6 categories]
-        AT[ATS<br/>structural hazards]
-        M[Matching<br/>requirements · 3-state skills]
-        RC[Recommendations<br/>rules · provider seam]
-    end
-    DB[(PostgreSQL)]
-    FS[(Content-addressed storage)]
-
-    UI -->|JWT| R --> S
-    S --> D --> P
-    S --> SC
-    S --> AT
-    S --> M
-    S --> RC
-    S --> DB
-    S --> FS
-    X -.-> R
+    UI[React 18 · TypeScript · Tailwind] -->|JWT| R[FastAPI routes<br/>auth · resumes · analyses<br/>jobs · matches · exports]
+    R --> S[Services<br/>ownership · orchestration · revisions]
+    S --> I[Deterministic intelligence<br/>validate · extract/OCR · parse<br/>score · ATS · match · recommend]
+    S --> DB[(PostgreSQL)]
+    S --> FS[(Content-addressed storage)]
 ```
 
 | Layer | Stack |
 |:--|:--|
-| Web | React 18 · TypeScript (strict) · Vite 5 · Tailwind · React Router · TanStack Query |
+| Web | React 18 · TypeScript strict · Vite 5 · Tailwind · TanStack Query |
 | API | FastAPI · Pydantic v2 · SQLAlchemy 2 · Alembic · Python 3.12 |
-| Data | PostgreSQL 16 · Redis (shared rate-limit counters) |
-| Documents | PyMuPDF · python-docx · text-layer extraction with scanned-PDF detection |
-| Documents | PyMuPDF · python-docx · Tesseract + OpenCV OCR fallback |
-| Hardening | ClamAV `INSTREAM` scanning · container-abuse limits · SHA-256 storage |
-| AI (optional) | Google Gemini via `google-genai`, schema-validated, never in the scoring path |
-| Delivery | Docker · Docker Compose · GitHub Actions · structured JSON logs |
+| Data | PostgreSQL 16 · Redis for shared rate-limit counters |
+| Documents | PyMuPDF · python-docx · Tesseract + OpenCV OCR · ReportLab |
+| Hardening | ClamAV · container-abuse limits · SHA-256 storage |
+| AI (optional) | Gemini via `google-genai` — rewrites only, never scoring |
+| Delivery | Docker · Compose · GitHub Actions · structured JSON logs |
 
-### Repository map
-
-| Path | What lives there |
-|:--|:--|
-| `backend/app/api/` | routes, dependencies, auth guards, error envelope |
-| `backend/app/intelligence/` | parser, scoring, ATS, matching, recommendations — no network calls |
-| `backend/app/ai/providers/` | rewrite seam: deterministic null provider, optional Gemini |
-| `backend/app/document/` | validation, extraction, OCR seam, PDF/DOCX rendering |
-| `backend/app/services/` | ownership, orchestration, revisions, exports, retention |
-| `backend/tests/` | hermetic suite: parser, scoring, ATS, matching, API, security, performance |
-| `frontend/src/` | typed API client, dashboard, report, studio, match, export |
-| `frontend/e2e/` | Playwright journey against a real stack |
-| `scripts/` | every measurement and artefact in this file |
-| `assets/readme/` | the figures below, as raw JSON and PNG |
-| `docs/` | SRS, architecture, API, scoring, security, testing, status |
+**37 API operations across 29 paths**, all under `/api/v1` except health. The deterministic engine lives in `backend/app/intelligence/`; document handling in `backend/app/document/`; every measurement and artefact in `scripts/`. Contracts: [`docs/API.md`](docs/API.md).
 
 ---
 
-## Run it
+## 12 — Run, test, reproduce
 
 ```bash
 git clone https://github.com/tdzoro/Potencia && cd Potencia
@@ -494,149 +351,69 @@ cp .env.example .env            # set POTENCIA_SECRET_KEY
 docker compose up --build       # API :8000 · web :8080 · PostgreSQL · Redis · ClamAV :3310
 ```
 
-`GEMINI_API_KEY` and the `SMTP_*` settings are optional; without them the product runs rules-only and logs verification links instead of emailing them.
-
-To seed a prepared shared demo account on an API you control, run `PYTHONPATH=backend backend/.venv/bin/python scripts/seed_demo.py --base http://127.0.0.1:8000`. For a demo-only frontend build, set `VITE_DEMO_MODE=1` (and optionally `VITE_DEMO_EMAIL` / `VITE_DEMO_PASSWORD`) when building the frontend; only enable this on an environment where the shared demo account is intended to be public. Normal builds do not show the demo CTA or embed its credentials. The seed script is safe to re-run and prints the account credentials for setup.
-
-Local development without Docker:
+`GEMINI_API_KEY` and `SMTP_*` are optional; without them the product is rules-only and logs verification links instead of emailing them. Local backend setup: `python -m venv .venv`, `pip install -r requirements.txt`, `alembic upgrade head`, `uvicorn app.main:app --reload`; the frontend runs with `npm install && npm run dev`.
 
 ```bash
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-export POTENCIA_DATABASE_URL=postgresql+psycopg://potencia:potencia@localhost:5432/potencia
-export POTENCIA_SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
-alembic upgrade head
-uvicorn app.main:app --reload
+cd backend && pytest                 # 253 collected · 248 pass · 5 optional skips
+cd frontend && npm test              # 33 component and form tests
+cd frontend && npm run build         # strict typecheck + production build
+cd frontend && npm run e2e           # 15 browser journeys against a live stack
 ```
-
-```bash
-cd frontend && npm install && npm run dev
-```
-
----
-
-## API surface
-
-37 operations across 29 paths, all under `/api/v1` except health. Full contracts in [`docs/API.md`](docs/API.md).
-
-| Group | Operations |
-|:--|:--|
-| Auth | register · verify email · resend verification · login · refresh · logout · forgot password · reset password · me · delete account |
-| Resumes | upload · list · get · revisions (list, create, compare) · delete |
-| Analyses | create · list · get · report · recommendations · exports · delete |
-| Jobs & matches | create · list · get · delete · match · read |
-| Recommendations | decide (accept · reject · edit) |
-| Exports | create · get · signed download · delete |
-
----
-
-## Security posture
-
-| Control | State |
-|:--|:--|
-| Password hashing | bcrypt, per-password salt |
-| Tokens | 15-min access JWT, 14-day refresh, revoked by `token_version`; verification and reset tokens stored as SHA-256 hashes |
-| Account enumeration | Identical `401` for unknown email and wrong password |
-| Data isolation | Row-level `user_id`; another user's resource returns `404` |
-| Uploads | Extension + magic bytes + streaming size cap + ClamAV scan |
-| Downloads | HMAC-signed, user-bound, 15-minute capability URL |
-| Rate limits | Login 5/15 min · uploads 10/h · analyses 20/h · exports 30/h |
-| Response headers | `nosniff` · `DENY` framing · `no-referrer` · strict CSP · `no-store` |
-
-Full detail, including what is deliberately not implemented yet, is in [`docs/SECURITY.md`](docs/SECURITY.md).
-
----
-
-## Testing
-
-```bash
-cd backend && pytest -q          # 247 collected; 242 pass, 5 optional skips
-cd frontend && npm test          # 33 component and form tests (Vitest + Testing Library)
-cd frontend && npm run build     # strict typecheck + production build
-cd frontend && npm run e2e       # 15 browser journeys against a live stack
-```
-
-The backend has 247 collected tests (242 pass; 5 optional integrations skipped in the hermetic run). CI separately starts ClamAV and runs the four live daemon tests. To run them locally, start a ClamAV daemon on port 3310 and use:
-
-```bash
-cd backend
-POTENCIA_TEST_CLAMAV=1 POTENCIA_CLAMAV_ENABLED=true POTENCIA_CLAMAV_HOST=127.0.0.1 POTENCIA_CLAMAV_PORT=3310 .venv/bin/python -m pytest tests/test_clamav_integration.py -q
-```
-
-The browser suite seeds its own account through the API and drives the real UI: the score is asserted from the DOM, a recommendation is accepted and re-read after reload, a PDF is generated and its signed link verified, a job description produces a named gap, a revision is saved without touching the original, a named version is compared field by field, and that same version is exported by name.
 
 Tests that exist to stop the product lying:
 
-- **Score reconciliation** — `sum(findings.score_impact) == 100 - overall` within 0.15.
-- **Evidence required** — every finding carries at least one verbatim excerpt.
-- **No invented metrics** — a rewrite for an unquantified bullet contains no digits, or asks for the real figure.
-- **Partial ≠ absent** — a claimed-but-undemonstrated skill never collapses into a missing one.
-- **Original is immutable** — after an edit, revision 0 is byte-identical.
-- **Idempotency creates nothing** — a replayed create adds no second row.
-- **Efficiency guardrails** — one document read per match; no per-line heading sort.
+- **Reconciliation** — `sum(findings.score_impact) == 100 − overall` within 0.15.
+- **Impact order** — findings and priority actions descend by points lost.
+- **Evidence** — every finding carries a verbatim excerpt; `R` is not substantiated by "worked".
+- **Honesty** — no invented metrics, and *partial* never collapses into *absent*.
+- **Immutability** — revision 0 stays byte-identical; a replayed create writes no second row.
+- **Efficiency** — one document read per match; no heading sort per line.
 
----
-
-## Limitations
-
-Stated here rather than discovered later:
-
-- **The weights are not empirically validated.** A reproducible harness shows the shipped vector is not beaten by plausible alternatives on eight rubric-ranked fixtures; that is a floor, not a study.
-- **The ATS score simulates no specific vendor.** It measures structural parseability, the honest shared denominator.
-- **AI is optional and never scores.** Without `GEMINI_API_KEY` the engine is rules-only; with it, proposals are schema-validated and fall back to rules on any failure. The score is identical either way.
-- **OCR needs the Tesseract binary.** The API image installs it. A host install without Tesseract detects a scanned document and returns `ocr_not_performed` rather than pretending to read it. The recorded OCR measurement covers one reproducible synthetic scan; real scan quality varies.
-- **ClamAV is optional outside production.** Compose ships the daemon; if it is unreachable in development the upload is accepted and marked unscanned, while production refuses it with `503`.
-- **Email delivery needs SMTP.** Without it, verification and reset run in a hermetic in-memory mode, so links are logged rather than sent.
-- **Performance figures are single-host.** One process, one PostgreSQL; the same load script has measured 60.5 and 77.4 analyses/s on this machine at different times, and absolute engine microseconds track CPU clock. No capacity claim is made.
-- **Comparison covers summary, skills, experience bullets, projects and education.** Certifications, achievements and leadership lines are carried in every version and exported, but are not diffed field by field.
-- **Registration is limited to 5 per 15 minutes per identity**, which a shared office IP can reach.
-
----
-
-## Documentation
-
-| Document | Contents |
-|:--|:--|
-| [SRS](docs/SRS.md) | Requirements, journeys, acceptance criteria |
-| [Architecture](docs/ARCHITECTURE.md) | Modules, boundaries, sequences, data model |
-| [API](docs/API.md) | Every endpoint, payload and error code |
-| [Scoring methodology](docs/SCORING_METHODOLOGY.md) | All 30 criteria, weights, applicability, confidence |
-| [Security](docs/SECURITY.md) | Controls, threat surface, gaps |
-| [Testing](docs/TESTING.md) | Coverage and the assertions that matter |
-| [Status](docs/PROJECT_STATUS.md) | Phase-by-phase state and known issues |
-| [QA report](docs/QA_REPORT.md) | Audit findings, remediations and measured results |
-| [Audit](docs/REPOSITORY_AUDIT.md) | The original repository assessment and what it drove |
+CI separately starts ClamAV and runs the live-daemon tests (`tests/test_clamav_integration.py`). The browser suite seeds its own account and asserts the score from the DOM, accepts a recommendation, verifies a signed PDF link, produces a named job gap and exports a named version.
 
 ### Reproduce every figure
 
-Nothing above was typed by hand. Each script measures the running product and writes its raw output next to the chart, so a claim and its evidence ship together.
+Each script writes raw output next to the chart. Nothing here was typed by hand.
 
-| Script | What it measures | Writes |
+| Script | Measures | Writes |
 |:--|:--|:--|
 | `readme_metrics.py` | one real upload → analysis → recommendations → match → exports | `metrics.json`, `latency.png`, `findings.png` |
 | `profile_engine.py` | per-stage cost, cold start, size and requirement scaling | `engine_profile.json` |
 | `calibrate.py` | five weight vectors against eight rubric-ranked fixtures | `calibration.json` |
 | `load_test.py` | 200 analyses across 8 concurrent clients | `load.json` |
-| `measure_ocr.py` | text-layer and OCR extraction cost, word recovery and score drift on a synthetic scan | `ocr_profile.json` |
-| `seed_demo.py` | idempotently seeds the shared demo resume, analysis and job match (not a measurement) | API database |
-| `readme_charts.py` | renders the graphs from the JSON above — measures nothing itself | `calibration.png`, `contribution.png`, `scaling.png`, `load.png` |
-| `capture_screenshots.mjs` | the authenticated journey in Chromium, then each screen | `ui-*.png` |
-| `report_page.py` | a real generated report PDF, rasterised page one | `report-first-page.png` |
+| `measure_ocr.py` | OCR cost, word recovery and score drift on a synthetic scan | `ocr_profile.json` |
+| `readme_charts.py` + capture scripts | charts from the JSON; UI screenshots and the report page | `*.png` |
 
 ```bash
 PYTHONPATH=backend backend/.venv/bin/python scripts/profile_engine.py
-PYTHONPATH=backend backend/.venv/bin/python scripts/measure_ocr.py  # requires Tesseract
 PYTHONPATH=backend backend/.venv/bin/python scripts/calibrate.py
 PYTHONPATH=backend backend/.venv/bin/python scripts/readme_charts.py
 ```
+
+Docs: [SRS](docs/SRS.md) · [Architecture](docs/ARCHITECTURE.md) · [API](docs/API.md) · [Scoring methodology](docs/SCORING_METHODOLOGY.md) · [Security](docs/SECURITY.md) · [Testing](docs/TESTING.md) · [Status](docs/PROJECT_STATUS.md) · [QA report](docs/QA_REPORT.md).
+
+---
+
+## 13 — Limits, stated up front
+
+- **The weights are not empirically validated.** A reproducible harness shows the shipped vector is not beaten on eight rubric-ranked fixtures; two vectors tie it. That is a floor, not a study.
+- **The ATS score simulates no specific vendor.** It measures structural parseability — the honest shared denominator.
+- **AI is optional and never scores.** Without a key the product is entirely rules-driven; with one, proposals are schema-validated and fall back on failure.
+- **Recency and length checks use the UTC calendar year.** The same input in the same year yields the same score; an explicit later re-analysis can differ, and stored analyses are never silently recalculated.
+- **OCR needs the Tesseract binary.** Without it, a scanned document returns `ocr_not_performed` rather than pretending to read it. The recorded test covers one synthetic scan.
+- **ClamAV is optional outside production.** In development an unscanned upload is accepted and marked `scanned: false`; production refuses it with `503`.
+- **Email needs SMTP.** Without it, verification and reset links are logged in a hermetic in-memory mode.
+- **Performance is single-host.** One process, one PostgreSQL, no capacity claim.
+- **Version comparison** covers summary, skills, experience bullets, projects and education; certifications, achievements and leadership lines are carried and exported but not diffed field by field.
 
 ---
 
 <div align="center">
 
-**POTENCIA** · AI Resume Intelligence
+**POTENCIA** · Resume intelligence you can audit
 
 Built by [Arghya Bose](https://github.com/tdzoro) · © 2026 POTENCIA Team · All rights reserved
+
+[Licence](LICENSE) · [Methodology](docs/SCORING_METHODOLOGY.md) · [API](docs/API.md)
 
 </div>

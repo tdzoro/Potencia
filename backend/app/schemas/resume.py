@@ -151,12 +151,28 @@ class ResumeStructure(BaseModel):
             bullets.extend(project.bullets)
         return bullets
 
-    def substantiated_text(self) -> str:
-        """Everything except the skills list.
+    def experience_text(self) -> str:
+        """Role text used for cross-checks that specifically measure experience."""
+        parts: list[str] = []
+        for role in self.experience:
+            parts.append(" ".join(filter(None, [role.title, role.organisation])))
+            parts.extend(b.text for b in role.bullets)
+        return " ".join(parts)
 
-        A skill is 'substantiated' when it appears in prose — experience,
-        projects, certifications — not merely in the skills list itself.
-        """
+    def skill_evidence_text(self) -> str:
+        """Evidence outside the summary and skills list for explicitly claimed skills."""
+        parts = [self.experience_text()]
+        for project in self.projects:
+            parts.append(" ".join(filter(None, [project.name, project.description])))
+            parts.extend(project.technologies)
+            parts.extend(b.text for b in project.bullets)
+        parts.extend(c.name for c in self.certifications)
+        parts.extend(self.achievements)
+        parts.extend(self.leadership)
+        return " ".join(parts)
+
+    def substantiated_text(self) -> str:
+        """All descriptive text except the skills list, including the summary."""
         parts: list[str] = []
         if self.summary.text:
             parts.append(self.summary.text)

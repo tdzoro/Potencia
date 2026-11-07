@@ -68,7 +68,7 @@ applicable_weight = Σ(W_c)
 Rules that make this reproducible:
 
 - Floating point is computed in `Decimal` at 4 decimal places; the API rounds to **one** decimal place exactly once, at serialisation.
-- No randomness, no sampling, no time-dependent input. A resume scored twice yields byte-identical JSON except for identifiers and timestamps.
+- No randomness or sampling. Date-relative criteria (SK-05 recency and ST-04 length versus career span) use the UTC calendar year at analysis time; the same input and year yield the same score, while an explicit later re-analysis can differ when that reference year changes. The original stored analysis is not silently recalculated.
 - Ordering of criteria never affects the result.
 - `applicable_weight` is always reported. A score of 82 over `applicable_weight: 60` means something structurally different from 82 over 100, and hiding that would be misleading.
 
@@ -135,7 +135,7 @@ Rationale for the `0.5` target on CQ-03: requiring every bullet to be quantified
 | EX-02 | Chronology integrity | 25 | `chronology` | Order is reverse-chronological; no end before start; gaps > 6 months between roles are either explained or surfaced | `1.0` clean · `−0.25` per inversion, invalid range, or unexplained gap (floor `0.0`) |
 | EX-03 | Achievement orientation | 30 | `achievement_framing` | Fraction of bullets asserting an outcome or result rather than a duty | `clamp(ratio / 0.6, 0, 1)` |
 | EX-04 | Progression and tenure | 15 | `progression` | Title seniority trend across roles; median tenure | `1.0` rising titles and median ≥ 12 months · `0.6` flat · `0.3` falling or median < 6 months |
-| EX-05 | Relevance density | 10 | `experience_relevance` | Overlap of experience terminology with the taxonomy of skills claimed in the resume | `clamp(jaccard_like / 0.5, 0, 1)` |
+| EX-05 | Relevance density | 10 | `experience_relevance` | Fraction of explicitly claimed canonical skills with a whole-mention in role titles, employers or bullets | `clamp(ratio / 0.5, 0, 1)` |
 
 EX-04 is deliberately gentle: a candidate who changed roles recently is not a bad candidate. Its weight (15 within category → 3 overall) matches its actual signal value.
 
@@ -146,10 +146,10 @@ EX-04 is deliberately gentle: a candidate who changed roles recently is not a ba
 | SK-01 | Explicit coverage | 25 | `skill_coverage` | Count of distinct canonical skills in the taxonomy | `clamp(count / 10, 0, 1)` |
 | SK-02 | Organisation | 20 | `skill_grouping` | Skills grouped into ≥ 2 meaningful clusters (languages, frameworks, tools, domains) | `1.0` grouped · `0.5` flat list · `0.0` skills only inside prose |
 | SK-03 | Redundancy | 15 | `skill_redundancy` | Duplicate entries and overlapping aliases (`JS` / `JavaScript`) | `1.0 − 0.15 × duplicates` (floor `0.0`) |
-| SK-04 | Verifiability | 25 | `skill_verifiability` | Fraction of claimed skills with any supporting occurrence in experience, projects or certifications | `clamp(ratio / 0.7, 0, 1)` |
-| SK-05 | Recency | 15 | `skill_recency` | Fraction of skills appearing in a role ending within 5 years, when dates exist | `clamp(ratio / 0.6, 0, 1)`, **not applicable** when no dates parse |
+| SK-04 | Verifiability | 25 | `skill_verifiability` | Fraction of claimed skills with a whole-mention outside the summary and skills list—in roles, projects (including technology lists), certifications, achievements or leadership | `clamp(ratio / 0.7, 0, 1)` |
+| SK-05 | Recency | 15 | `skill_recency` | Fraction of skills appearing in bullets of roles that ended within 5 UTC calendar years (ongoing roles count as current); a malformed explicit end is unknown, not current | `clamp(ratio / 0.6, 0, 1)`, **not applicable** when no dates parse |
 
-SK-04 is the criterion that protects honesty: it rewards a short, defensible skill list over a wall of keywords the resume never substantiates. It also feeds §5's recommendation rule — a low SK-04 produces "remove or substantiate" advice, never "add more keywords".
+SK-04 is the criterion that protects honesty: it rewards a short, defensible skill list over a wall of keywords the resume never substantiates. Mentions use taxonomy aliases and whole-token boundaries; a skill in the summary alone is still a claim, not demonstrated use. It also feeds §5's recommendation rule — a low SK-04 produces "remove or substantiate" advice, never "add more keywords".
 
 ### 4.4 Structure — weight 15
 
@@ -193,7 +193,7 @@ Every criterion emits, for every deduction, a `Finding` conforming to `API.md` �
 2. **Evidence** — at least one verbatim span from the resume, with its structural location (`experience[1].bullets[3]`). Verbatim, not paraphrased: a user must be able to find the sentence.
 3. **Explanation** — why this reduces effectiveness, in the user's terms.
 4. **Remediation** — what to change, phrased so a person who *does not* have the missing information is not pushed to invent it.
-5. **`score_impact`** — `100 × W_c × w_i × s_i / (Σ applicable)` — the exact points this deduction cost, so the findings sum reconciles with the score. If the sum does not reconcile, the report is unchecked and must not ship.
+5. **`score_impact`** — the exact positive point loss this finding contributes, so the findings sum reconciles with the score. Findings with a score impact are ordered by descending impact (then severity and stable criterion/id tie-breaks); advisory findings with no impact follow. If the sum does not reconcile, the report is unchecked and must not ship.
 
 **Remediation honesty rule.** When a fix requires a fact the resume does not contain, the finding asks for it rather than supplying one:
 
@@ -251,7 +251,7 @@ Category confidence is the minimum across its applicable criteria — a category
 
 ## 9. Calibration — what would justify these numbers
 
-Until this is done, the weights are labelled *product-design starting points* everywhere they appear, including in the API response. They are not validated, and we will not claim they are.
+Until this is done, the weights are labelled *product-design starting points* everywhere they appear, including in the API response. They are not validated, and we will not claim they are. The eight authored calibration fixtures use rubric-assigned tiers; they are useful regression probes, not independent quality labels.
 
 | Step | Method | Produces |
 |:--|:--|:--|

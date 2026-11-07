@@ -17,6 +17,7 @@ while a fabricated one tells a user they have experience they do not have.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -356,6 +357,68 @@ def category_of(name: str) -> str | None:
     if canonical is None:
         return None
     return _CATEGORY_BY_CANONICAL.get(canonical)
+
+
+def _canonicals_in(text: str, *, include_ambiguous: bool = True) -> frozenset[str]:
+    """Canonical skills mentioned in `text`, found in one regex pass."""
+    found: set[str] = set()
+    for match in _PATTERN.finditer(text):
+        key = _normalise_key(match.group(0))
+        if not include_ambiguous and key in AMBIGUOUS_ALIASES:
+            continue
+        canonical = _ALIAS_INDEX.get(key)
+        if canonical is not None:
+            found.add(canonical)
+    return frozenset(found)
+
+
+def _exact_mention(text: str, name: str) -> bool:
+    """Case-insensitive whole-token match for a skill outside the taxonomy."""
+    stripped = name.strip()
+    if not stripped:
+        return False
+    return (
+        re.search(
+            rf"(?<![A-Za-z0-9]){re.escape(stripped)}(?![A-Za-z0-9])",
+            text,
+            re.IGNORECASE,
+        )
+        is not None
+    )
+
+
+def contains_skill(text: str, name: str, *, include_ambiguous: bool = True) -> bool:
+    """Return whether `text` contains a whole mention of a known skill.
+
+    Matching uses the same alias table and token boundaries as extraction, so
+    `R` does not match the letter inside `worked` and `JS` matches
+    `JavaScript`. Ambiguous names are enabled by default because this helper is
+    used only to substantiate an explicitly claimed skill.
+    """
+    target = canonicalise(name)
+    if not text or not name:
+        return False
+    if target is None:
+        return _exact_mention(text, name)
+    return target in _canonicals_in(text, include_ambiguous=include_ambiguous)
+
+
+def split_supported_skills(text: str, names: Iterable[str]) -> tuple[list[str], list[str]]:
+    """Partition claimed skills by whether `text` contains a whole mention.
+
+    Scans `text` once regardless of how many skills are claimed: checking each
+    claim separately made scoring cost grow with the size of the skill list.
+    """
+    present = _canonicals_in(text)
+    supported: list[str] = []
+    unsupported: list[str] = []
+
+    for name in names:
+        target = canonicalise(name)
+        evidenced = target in present if target is not None else _exact_mention(text, name)
+        (supported if evidenced else unsupported).append(name)
+
+    return supported, unsupported
 
 
 def _build_pattern() -> re.Pattern[str]:

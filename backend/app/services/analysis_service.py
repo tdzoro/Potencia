@@ -32,8 +32,7 @@ def _priority_actions(findings) -> list[str]:
     """
     ranked = sorted(
         (f for f in findings if f.score_impact),
-        key=lambda f: f.score_impact,
-        reverse=True,
+        key=lambda f: (-f.score_impact, f.criterion, f.id),
     )
     return [f"{f.title} — {f.remediation}" for f in ranked[:5]]
 

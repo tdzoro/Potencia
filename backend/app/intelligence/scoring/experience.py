@@ -18,6 +18,7 @@ from app.intelligence.scoring.aggregate import (
     make_result,
     not_applicable,
 )
+from app.intelligence.taxonomy import split_supported_skills
 from app.schemas.resume import ExperienceEntry, ResumeStructure
 from app.schemas.scores import CriterionResult, Evidence
 
@@ -281,8 +282,8 @@ def _ex05(structure: ResumeStructure, entries: list[ExperienceEntry]) -> Criteri
     if not claimed:
         return not_applicable("EX-05", "no claimed skills to cross-check against experience")
 
-    text = structure.substantiated_text().lower()
-    matched = {skill for skill in claimed if skill and skill in text}
+    text = structure.experience_text()
+    matched, _ = split_supported_skills(text, claimed)
     ratio = len(matched) / len(claimed)
     subscore = clamp(ratio / 0.5)
 

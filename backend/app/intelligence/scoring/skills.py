@@ -14,6 +14,7 @@ from functools import lru_cache
 
 from app.intelligence.scoring.aggregate import clamp, make_finding, make_result, not_applicable
 from app.intelligence.scoring.experience import parse_year_month
+from app.intelligence.taxonomy import split_supported_skills
 from app.schemas.resume import ResumeStructure
 from app.schemas.scores import CriterionResult, Evidence
 
@@ -212,10 +213,8 @@ def _sk04(structure: ResumeStructure, explicit: list[str]) -> CriterionResult:
     if not explicit:
         return not_applicable("SK-04", "no explicit skill list to verify")
 
-    text = structure.substantiated_text().lower()
-    unsupported = [
-        skill for skill in explicit if canonical(skill) not in text and skill.lower() not in text
-    ]
+    text = structure.skill_evidence_text()
+    _, unsupported = split_supported_skills(text, explicit)
     ratio = (len(explicit) - len(unsupported)) / len(explicit)
     subscore = clamp(ratio / 0.7)
     evidence = [Evidence(section="skills", text=", ".join(unsupported[:8]))] if unsupported else _evidence(explicit)
@@ -266,14 +265,16 @@ def _sk05(structure: ResumeStructure, explicit: list[str]) -> CriterionResult:
         if end_year is None and start is None:
             continue
         dated_roles += 1
-        if end_year is None or end_year >= current_year - _RECENT_YEARS:
+        # A missing end means the role is ongoing; an unparseable explicit end
+        # is unknown and must not be interpreted as current.
+        if end_year is not None and end_year >= current_year - _RECENT_YEARS:
             recent_text_parts.extend(bullet.text for bullet in role.bullets)
 
     if dated_roles == 0:
         return not_applicable("SK-05", "no parseable dates to establish recency")
 
-    recent_text = " ".join(recent_text_parts).lower()
-    recent = [skill for skill in explicit if canonical(skill) in recent_text or skill.lower() in recent_text]
+    recent_text = " ".join(recent_text_parts)
+    recent, _ = split_supported_skills(recent_text, explicit)
     ratio = len(recent) / len(explicit)
     subscore = clamp(ratio / 0.6)
 

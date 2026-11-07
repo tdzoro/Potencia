@@ -522,7 +522,14 @@ def assemble(
                     )
                 )
 
-    findings.sort(key=lambda f: (-severity_rank(f.severity), f.criterion))
+    findings.sort(
+        key=lambda f: (
+            -(f.score_impact or 0.0),
+            -severity_rank(f.severity),
+            f.criterion,
+            f.id,
+        )
+    )
 
     cq03 = next((c.subscore for c in criteria_all if c.criterion == "CQ-03"), None)
     sk04 = next((c.subscore for c in criteria_all if c.criterion == "SK-04"), None)

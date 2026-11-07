@@ -3,7 +3,7 @@
 ## Running the suites
 
 ```bash
-cd backend && pytest -q          # 247 tests collected; 242 pass, 5 optional integrations skip
+cd backend && pytest -q          # 253 tests collected; 248 pass, 5 optional integrations skip
 cd frontend && npm test          # 33 component/form tests (Vitest)
 cd frontend && npm run build     # strict typecheck + production build
 cd frontend && npm run e2e       # 15 browser journeys, needs a live stack

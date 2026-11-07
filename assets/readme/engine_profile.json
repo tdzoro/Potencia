@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-01T09:22:09Z",
+  "generated_at": "2026-11-07T16:28:25Z",
   "python": "3.12.3",
   "corpus": {
     "documents": 8,
@@ -7,181 +7,181 @@
     "runs": 200
   },
   "cold_start_ms": {
-    "parse": 1.152,
-    "score": 1.008
+    "parse": 1.687,
+    "score": 2.318
   },
   "warm_ms": {
     "parse": {
-      "p50": 0.836,
-      "p95": 0.985,
-      "p99": 1.099,
-      "max": 1.446,
-      "mean": 0.854
+      "p50": 1.127,
+      "p95": 1.269,
+      "p99": 1.448,
+      "max": 2.433,
+      "mean": 1.16
     },
     "score": {
-      "p50": 0.406,
-      "p95": 0.522,
-      "p99": 0.888,
-      "max": 1.174,
-      "mean": 0.423
+      "p50": 1.256,
+      "p95": 1.672,
+      "p99": 2.3,
+      "max": 2.755,
+      "mean": 1.283
     },
     "pipeline": {
-      "p50": 1.578,
-      "p95": 2.557,
-      "p99": 4.024,
-      "max": 5.266,
-      "mean": 1.769
+      "p50": 2.095,
+      "p95": 2.381,
+      "p99": 3.599,
+      "max": 3.786,
+      "mean": 2.129
     },
     "match": {
-      "p50": 0.074,
-      "p95": 0.11,
-      "p99": 0.203,
-      "max": 0.82,
-      "mean": 0.084
+      "p50": 0.053,
+      "p95": 0.058,
+      "p99": 0.071,
+      "max": 0.252,
+      "mean": 0.055
     },
     "recommendations": {
-      "p50": 0.056,
-      "p95": 0.069,
-      "p99": 0.089,
-      "max": 0.328,
-      "mean": 0.058
+      "p50": 0.044,
+      "p95": 0.047,
+      "p99": 0.05,
+      "max": 0.094,
+      "mean": 0.044
     },
     "full": {
-      "p50": 2.119,
-      "p95": 2.895,
-      "p99": 3.491,
-      "max": 4.408,
-      "mean": 2.235
+      "p50": 2.091,
+      "p95": 2.349,
+      "p99": 3.727,
+      "max": 3.895,
+      "mean": 2.152
     }
   },
   "scaling": [
     {
       "factor": 1,
       "kilobytes": 0.8,
-      "p50_ms": 1.67,
-      "ms_per_kb": 1.984,
-      "relative_to_1x": 1.04
+      "p50_ms": 1.728,
+      "ms_per_kb": 2.053,
+      "relative_to_1x": 1.0
     },
     {
       "factor": 2,
       "kilobytes": 1.7,
-      "p50_ms": 2.668,
-      "ms_per_kb": 1.583,
-      "relative_to_1x": 1.66
+      "p50_ms": 3.083,
+      "ms_per_kb": 1.829,
+      "relative_to_1x": 1.78
     },
     {
       "factor": 4,
       "kilobytes": 3.4,
-      "p50_ms": 4.591,
-      "ms_per_kb": 1.361,
-      "relative_to_1x": 2.86
+      "p50_ms": 5.521,
+      "ms_per_kb": 1.637,
+      "relative_to_1x": 3.18
     },
     {
       "factor": 8,
       "kilobytes": 6.7,
-      "p50_ms": 7.803,
-      "ms_per_kb": 1.156,
-      "relative_to_1x": 4.85
+      "p50_ms": 11.03,
+      "ms_per_kb": 1.635,
+      "relative_to_1x": 6.36
     }
   ],
   "match_scaling": [
     {
       "requirements": 5,
-      "p50_ms": 0.191,
-      "ms_per_requirement": 0.0382,
-      "relative_to_5": 1.06
+      "p50_ms": 0.114,
+      "ms_per_requirement": 0.0228,
+      "relative_to_5": 0.99
     },
     {
       "requirements": 10,
-      "p50_ms": 0.225,
-      "ms_per_requirement": 0.0225,
-      "relative_to_5": 1.24
+      "p50_ms": 0.147,
+      "ms_per_requirement": 0.0147,
+      "relative_to_5": 1.28
     },
     {
       "requirements": 20,
-      "p50_ms": 0.322,
-      "ms_per_requirement": 0.0161,
-      "relative_to_5": 1.78
+      "p50_ms": 0.217,
+      "ms_per_requirement": 0.0109,
+      "relative_to_5": 1.89
     },
     {
       "requirements": 40,
-      "p50_ms": 0.546,
-      "ms_per_requirement": 0.0137,
-      "relative_to_5": 3.02
+      "p50_ms": 0.375,
+      "ms_per_requirement": 0.0094,
+      "relative_to_5": 3.26
     }
   ],
   "top_functions": [
     {
+      "function": "taxonomy.py:362 (_canonicals_in)",
+      "self_ms": 1.817,
+      "cumulative_ms": 1.825,
+      "calls": 60
+    },
+    {
       "function": "normalization.py:141 (find_date_tokens)",
-      "self_ms": 2.761,
-      "cumulative_ms": 9.762,
+      "self_ms": 1.075,
+      "cumulative_ms": 1.667,
       "calls": 1100
     },
     {
-      "function": "~:0 (<method 'strip' of 'str' objects>)",
-      "self_ms": 2.612,
-      "cumulative_ms": 2.612,
-      "calls": 35367
-    },
-    {
-      "function": "parser.py:200 (classify_heading)",
-      "self_ms": 1.884,
-      "cumulative_ms": 5.585,
-      "calls": 3220
-    },
-    {
-      "function": "normalization.py:82 (normalize_date)",
-      "self_ms": 1.79,
-      "cumulative_ms": 3.447,
-      "calls": 1560
-    },
-    {
-      "function": "~:0 (<method 'search' of 're.Pattern' objects>)",
-      "self_ms": 1.539,
-      "cumulative_ms": 1.539,
-      "calls": 15880
-    },
-    {
-      "function": "~:0 (<method 'append' of 'list' objects>)",
-      "self_ms": 1.259,
-      "cumulative_ms": 1.259,
-      "calls": 16654
-    },
-    {
-      "function": "taxonomy.py:375 (find_skills)",
-      "self_ms": 1.201,
-      "cumulative_ms": 1.342,
+      "function": "taxonomy.py:438 (find_skills)",
+      "self_ms": 1.004,
+      "cumulative_ms": 1.017,
       "calls": 100
     },
     {
-      "function": "normalization.py:214 (collapse_spaces)",
-      "self_ms": 1.186,
-      "cumulative_ms": 2.141,
-      "calls": 5280
+      "function": "~:0 (<method 'search' of 're.Pattern' objects>)",
+      "self_ms": 0.458,
+      "cumulative_ms": 0.458,
+      "calls": 15940
     },
     {
       "function": "~:0 (<method 'sub' of 're.Pattern' objects>)",
-      "self_ms": 1.151,
-      "cumulative_ms": 1.151,
-      "calls": 11312
+      "self_ms": 0.294,
+      "cumulative_ms": 0.294,
+      "calls": 11327
     },
     {
-      "function": "~:0 (<built-in method builtins.any>)",
-      "self_ms": 1.018,
-      "cumulative_ms": 1.817,
-      "calls": 2620
+      "function": "~:0 (<method 'validate_python' of 'pydantic_core._pydantic_core.SchemaValidator' objects>)",
+      "self_ms": 0.179,
+      "cumulative_ms": 0.179,
+      "calls": 4040
     },
     {
-      "function": "~:0 (<method 'lower' of 'str' objects>)",
-      "self_ms": 0.882,
-      "cumulative_ms": 0.882,
-      "calls": 11512
+      "function": "normalization.py:82 (normalize_date)",
+      "self_ms": 0.175,
+      "cumulative_ms": 0.345,
+      "calls": 1560
     },
     {
-      "function": "~:0 (<built-in method builtins.len>)",
-      "self_ms": 0.86,
-      "cumulative_ms": 0.86,
-      "calls": 11802
+      "function": "parser.py:200 (classify_heading)",
+      "self_ms": 0.149,
+      "cumulative_ms": 0.513,
+      "calls": 3220
+    },
+    {
+      "function": "~:0 (<method 'strip' of 'str' objects>)",
+      "self_ms": 0.125,
+      "cumulative_ms": 0.125,
+      "calls": 35457
+    },
+    {
+      "function": "~:0 (<method 'findall' of 're.Pattern' objects>)",
+      "self_ms": 0.093,
+      "cumulative_ms": 0.093,
+      "calls": 2860
+    },
+    {
+      "function": "~:0 (<method 'finditer' of 're.Pattern' objects>)",
+      "self_ms": 0.087,
+      "cumulative_ms": 0.087,
+      "calls": 9000
+    },
+    {
+      "function": "parser.py:335 (_parse_experience)",
+      "self_ms": 0.077,
+      "cumulative_ms": 0.94,
+      "calls": 20
     }
   ],
   "note": "Single process, single thread, no database and no network: this is the engine's own cost. Wall-clock figures on a laptop are indicative, not a capacity plan; the scaling ratios are the part that transfers."
